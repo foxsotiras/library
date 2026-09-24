@@ -1,0 +1,35 @@
+@startuml L2_Containers
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров C4 (Level 2) — Система «Интеллектуальная библиотека»
+
+Person(reader, "Читатель", "Ищет книги, подаёт заявки, голосует, общается на форумах")
+Person(librarian, "Библиотекарь", "Обрабатывает заявки, ведёт фонд")
+Person(admin, "Администратор", "Управляет системой, смотрит аналитику")
+
+System_Boundary(library, "Интеллектуальная библиотека") {
+    Container(web_app, "Веб-приложение", "React", "Обеспечивает интерфейс читателя, библиотекаря и администратора")
+    Container(api_gateway, "Backend API", "Node.js", "Основной бэкенд системы. Реализует бизнес-логику")
+    Container(ml_service, "ML-сервис", "Python", "Анализ трендов")
+    ContainerDb(database, "База данных", "PostgreSQL", "Хранение данных")
+    Container(storage, "Хранилище электронных книг", "RustFS", "Файлы книг")
+}
+
+System_Ext(trends, "Сервис мировых трендов", "Внешний источник данных о популярных книгах (например, Open Library)")
+System_Ext(email, "Сервис email-рассылок", "Уведомления читателям о готовности заявок, сроках возврата бумажных книг, ответах на форумах (Яндекс.Почта)")
+System_Ext(payment, "Банковский эквайринг", "Принимает оплату штрафов за просрочку возврата бумажных книг (Тинькофф)")
+
+Rel(reader, web_app, "Читает, обсуждает, участвует в формировании книжного фонда", "HTTPS")
+Rel(librarian, web_app, "Регистрирует пользователя в системе и фиксирует, кто какую книгу взял", "HTTPS")
+Rel(admin, web_app, "Управление системой (голосование), следит за аналитикой", "HTTPS")
+
+Rel(web_app, api_gateway, "Запросы на получение и изменение данных", "HTTPS")
+Rel(api_gateway, ml_service, "Запрос анализа внутренних трендов", "HTTPS")
+Rel(api_gateway, database, "Чтение и запись данных о книгах, читателях, заявках", "SQL")
+Rel(api_gateway, storage, "Получение файлов электронных книг", "HTTPS")
+
+Rel(api_gateway, trends, "Запрос данных о трендах", "REST API/HTTPS")
+Rel(api_gateway, email, "Отправка уведомлений", "SMTP")
+Rel(api_gateway, payment, "Запрос на приём платежа", "REST API/HTTPS")
+
+@enduml
