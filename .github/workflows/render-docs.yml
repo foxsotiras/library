@@ -1,0 +1,58 @@
+name: Render C4 Architecture Docs
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+      - 'releases/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Install Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+
+      - name: Download PlantUML
+        run: |
+          wget -O plantuml.jar https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar
+
+      - name: Linter
+        run: |
+          fail=0
+          if grep -rnEH '\b(Bi)?Rel_(D|U|L|R|Down|Up|Left|Right)\b' docs/src/main.puml docs/src/containers; then
+            echo "::error::Запрещены Rel_D/Rel_U/Rel_L/Rel_R. Используйте Rel()."
+            fail=1
+          fi
+          if grep -rnEH '^\s*skinparam' docs/src/containers; then
+            echo "::error::skinparam разрешён только в main.puml."
+            fail=1
+          fi
+          exit $fail
+
+      - name: Render PNG
+        run: |
+          mkdir -p docs/images
+          java -jar plantuml.jar -tpng -o "docs/images" "docs/src/**/*.puml"
+
+      - name: Upload diagrams as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: c4-diagrams
+          path: docs/images/*.png
