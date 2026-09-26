@@ -49,10 +49,10 @@ jobs:
       - name: Render PNG
         run: |
           mkdir -p docs/images
-          java -jar plantuml.jar -tpng -o "docs/images" "docs/src/**/*.puml"
+          java -jar plantuml.jar -tpng -o "$GITHUB_WORKSPACE/docs/images" "docs/src/**/*.puml"
 
       - name: Upload diagrams as artifact
         uses: actions/upload-artifact@v7
         with:
           name: c4-diagrams
-          path: docs/images/*.png
+          path: docs/images/
