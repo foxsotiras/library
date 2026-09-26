@@ -1,0 +1,22 @@
+@startuml "Smart Parking - Global Container View"
+' Подключение официальной библиотеки макросов C4 напрямую из GitHub
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_WITH_LEGEND()
+title Сводная диаграмма контейнеров ИС "Умная парковка"
+Person(driver, "Водитель", "Пользуется парковочными зонами, ищет и оплачивает места")
+Person(admin, "Оператор парковки", "Мониторит состояние парковки, администрирует тарифы")
+System_Ext(payment_gateway, "Банковский эквайринг", "Внешняя платежная система")
+System_Boundary(smart_parking, "Smart Parking System") {
+    Container(mobile_app, "Мобильное приложение водителя", "React Native", "Интерфейс водителя для поиска парковок и оплаты.")
+    Container(admin_web, "Панель администратора", "React / TypeScript", "Интерфейс оператора для мониторинга.")
+    Container(api_gateway, "API Gateway & Backend", "Python / FastAPI", "Маршрутизирует запросы и управляет бизнес-логикой.")
+    ContainerDb(database, "Реляционная БД", "PostgreSQL", "Хранит данные пользователей и статусы мест.")
+    Container(iot_controller, "Контроллер парковки", "Python / Asyncio (IoT Сервис)", "Сбор телеметрии с датчиков.")
+}
+Rel(driver, mobile_app, "Взаимодействует с", "HTTPS")
+Rel(admin, admin_web, "Взаимодействует с", "HTTPS")
+Rel(mobile_app, api_gateway, "Запросы на бронь", "HTTPS/JSON")
+Rel(admin_web, api_gateway, "Запросы аналитики", "HTTPS/JSON")
+Rel(api_gateway, database, "Чтение / Запись", "SQL")
+Rel(api_gateway, payment_gateway, "Проведение оплаты", "HTTPS/REST")
+@enduml
