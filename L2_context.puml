@@ -1,0 +1,59 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Диаграмма контейнеров C4 (Level 2) — Система «Интеллектуальная библиотека»
+
+Person(guest, "Гость", "Просматривает каталог и анонсы без регистрации")
+Person(chitatel, "Читатель", "Бронирует издания, ведёт личный кабинет, голосует, общается на форумах")
+Person(bibliotekar, "Библиотекарь", "Оформляет выдачу и возврат, ведёт фонд")
+Person(moderator, "Модератор форума", "Следит за порядком в обсуждениях, блокирует нарушителей")
+Person(admin, "Администратор", "Управляет ролями, смотрит аналитику")
+
+System_Boundary(biblio, "Интеллектуальная библиотека") {
+
+    Container(web, "Веб-приложение", "React + TypeScript", "SPA-интерфейс для всех ролей: каталог, личный кабинет, форум, админка")
+
+    Container(gateway, "API Gateway", "Nginx + JWT", "Единая точка входа, маршрутизация, аутентификация и rate limiting")
+
+    Container(api, "Backend API", "Node.js (NestJS)", "Бизнес-логика: фонд, выдачи, брони, штрафы, форум, заявки")
+
+    Container(ml, "ML-сервис", "Python (FastAPI)", "Анализ внутренних и мировых трендов, рекомендации")
+
+    Container(notifier, "Сервис уведомлений", "Python + Celery", "Асинхронная отправка email и push-уведомлений")
+
+    ContainerDb(db, "База данных", "PostgreSQL", "Пользователи, фонд, выдачи, брони, штрафы, заявки, сессии")
+
+    ContainerDb(search, "Поисковый индекс", "Elasticsearch", "Полнотекстовый поиск по каталогу и форуму")
+
+    ContainerDb(storage, "Хранилище электронных книг", "RustFS (S3-совместимое)", "Файлы книг: PDF, EPUB, аудио")
+
+    ContainerQueue(broker, "Очередь сообщений", "RabbitMQ", "Асинхронный обмен событиями между сервисами")
+}
+
+System_Ext(trends, "Сервис мировых трендов", "Источник данных о популярных изданиях (Open Library)")
+System_Ext(email, "Сервис email-рассылок", "SMTP-доставка писем (Яндекс.Почта)")
+System_Ext(payment, "Банковский эквайринг", "Приём онлайн-платежей (Тинькофф)")
+System_Ext(captcha, "Сервис капчи", "Защита форм от ботов (Google reCAPTCHA)")
+
+Rel(guest, web, "Просматривает каталог и анонсы", "HTTPS")
+Rel(chitatel, web, "Бронирует, голосует, пишет на форуме, платит штрафы", "HTTPS")
+Rel(bibliotekar, web, "Оформляет выдачу и возврат, редактирует фонд", "HTTPS")
+Rel(moderator, web, "Модерирует форум", "HTTPS")
+Rel(admin, web, "Управляет ролями и справочниками, смотрит аналитику", "HTTPS")
+
+Rel(web, gateway, "Все запросы к системе", "HTTPS")
+Rel(gateway, api, "Проксирует запросы после аутентификации", "HTTPS")
+Rel(gateway, captcha, "Проверка капчи на формах", "REST API/HTTPS")
+
+Rel(api, db, "Чтение и запись данных", "SQL")
+Rel(api, search, "Индексация и поиск", "REST API/HTTPS")
+Rel(api, storage, "Получение файлов книг", "HTTPS")
+Rel(api, ml, "Запрос анализа трендов", "HTTPS")
+Rel(api, broker, "Публикация событий (бронь, возврат, штраф)", "AMQP")
+
+Rel(broker, notifier, "События для уведомлений", "AMQP")
+Rel(notifier, email, "Отправка email", "SMTP")
+Rel(ml, trends, "Запрос мировых трендов", "REST API/HTTPS")
+Rel(api, payment, "Инициирование платежа", "REST API/HTTPS")
+
+@enduml
