@@ -157,6 +157,9 @@ jobs:
 
       # 6. Удаление изображений без исходных .puml
       - name: Cleanup obsolete diagrams
+        if: >
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
         shell: bash
         run: |
           set -euo pipefail
