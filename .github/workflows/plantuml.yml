@@ -20,24 +20,25 @@ on:
       - '.github/workflows/plantuml.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: plantuml-main
+  group: plantuml-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   render:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
-      # 1. Checkout репозитория
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      # 2. Установка Java и зависимостей
+      # 2. Java и зависимости
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
@@ -51,10 +52,15 @@ jobs:
 
       # 3. Установка PlantUML
       - name: Install PlantUML
+        shell: bash
         run: |
+          set -euo pipefail
+
+          VERSION="1.2026.10"
+
           curl -fL --retry 3 \
             -o /tmp/plantuml.jar \
-            https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar
+            "https://github.com/plantuml/plantuml/releases/download/v${VERSION}/plantuml-${VERSION}.jar"
 
           java -jar /tmp/plantuml.jar -version
 
@@ -65,7 +71,7 @@ jobs:
           set -euo pipefail
 
           if [ ! -d docs/src ]; then
-            echo "::error::Directory docs/src not found"
+            echo "Error: docs/src not found"
             exit 1
           fi
 
@@ -73,31 +79,34 @@ jobs:
             find docs/src -type f -name '*.puml' -print0
           )
 
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No PlantUML files found"
+          if [ ! -d docs/src ]; then
+            echo "No source directory found, cleanup will remove obsolete images"
             exit 0
           fi
 
-          # Проверка запрещённых конструкций
+          # Запрет Rel_*, Lay_* и skinparam
           if grep -nEi \
             '(^|[^[:alnum:]_])(Rel_|Lay_)[[:alnum:]_]*|(^|[^[:alnum:]_])skinparam([^[:alnum:]_]|$)' \
             "${files[@]}"; then
 
-            echo "::error::Forbidden PlantUML syntax"
+            echo "Error: Forbidden syntax"
             exit 1
           fi
 
-          # Проверка синтаксиса PlantUML
           for file in "${files[@]}"; do
             echo "Checking: $file"
 
-            java -jar /tmp/plantuml.jar \
-              --check-syntax "$file"
+            if ! java -jar /tmp/plantuml.jar \
+              --check-syntax "$file"; then
+
+              echo "Syntax error: $file"
+              exit 1
+            fi
           done
 
           echo "Validation successful"
 
-      # 5. Генерация PNG и SVG
+      # 5. Генерация изображений
       - name: Render diagrams
         shell: bash
         run: |
@@ -115,81 +124,131 @@ jobs:
             mkdir -p "$output"
             output="$(realpath "$output")"
 
-            echo "================================"
             echo "Rendering: $file"
-            echo "Output: $output"
-            echo "================================"
 
             for format in png svg; do
               echo "Generating $format..."
 
-              if java -jar /tmp/plantuml.jar \
+              if ! java -jar /tmp/plantuml.jar \
                 --format "$format" \
                 --output-dir "$output" \
                 "$file"; then
 
-                echo "PlantUML finished successfully"
-
-              else
-                echo "::error::PlantUML failed: $file ($format)"
+                echo "Render failed: $file ($format)"
                 exit 1
               fi
 
               expected="$output/$filename.$format"
 
               if [ ! -s "$expected" ]; then
-                echo "::error::Expected output not found: $expected"
-
-                echo "Files in output directory:"
+                echo "Output not found: $expected"
                 ls -lah "$output"
-
                 exit 1
               fi
 
-              echo "Successfully generated: $expected"
+              echo "Generated: $expected"
             done
 
           done < <(
             find docs/src -type f -name '*.puml' -print0
           )
 
-          echo "All diagrams rendered successfully"
+          echo "Rendering completed"
 
-      # 6. Загрузка артефактов
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+      # 6. Удаление изображений без исходных .puml
+      - name: Cleanup obsolete diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Checking for obsolete diagrams..."
+
+          if [ ! -d docs/images ]; then
+            echo "No generated images directory"
+            exit 0
+          fi
+
+          while IFS= read -r -d '' image; do
+            # Относительный путь изображения
+            relative="${image#docs/images/}"
+
+            # Восстанавливаем путь исходного .puml
+            source="docs/src/${relative%.*}.puml"
+
+            # Если исходника нет — удаляем рендер
+            if [ ! -f "$source" ]; then
+              echo "Removing obsolete image: $image"
+              rm -- "$image"
+            fi
+
+          done < <(
+            find docs/images -type f \
+              \( -name '*.png' -o -name '*.svg' \) \
+              -print0
+          )
+
+          # Удаляем пустые поддиректории
+          find docs/images \
+            -mindepth 1 \
+            -depth \
+            -type d \
+            -empty \
+            -delete
+
+          echo "Cleanup completed"
+
+      # 7. Получение токена GitHub App
+      # Только для push в main
+      - name: Generate GitHub App token
+        if: >
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+        id: app-token
+        uses: actions/create-github-app-token@v3
         with:
-          name: plantuml-diagrams
-          path: |
-            docs/images/**/*.png
-            docs/images/**/*.svg
-          if-no-files-found: warn
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
 
-      # 7. Создание отдельного коммита
+      # 8. Создание отдельного коммита
       - name: Commit generated diagrams
         if: >
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main'
         shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
           set -euo pipefail
 
-          # Добавляем сгенерированные изображения
           git add -A -- docs/images/
 
-          # Если изменений нет — коммит не нужен
           if git diff --cached --quiet; then
-            echo "No diagram changes detected"
+            echo "No changes detected"
             exit 0
           fi
 
-          # Настройка автора коммита
-          git config user.name "github-actions[bot]"
-          git config user.email \
-            "41898282+github-actions[bot]@users.noreply.github.com"
+          # Получаем GitHub ID бота для корректного email
+          BOT_NAME="${APP_SLUG}[bot]"
+
+          BOT_ID=$(gh api \
+            "/users/${BOT_NAME}" \
+            --jq '.id')
+
+          BOT_EMAIL="${BOT_ID}+${BOT_NAME}@users.noreply.github.com"
+
+          # Настраиваем автора
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
 
           # Создаём новый коммит
           git commit -m "docs: generate PlantUML diagrams"
+
+          # Настраиваем аутентификацию Git через App
+          gh auth setup-git
+
+          # Обычный push в main
           git push origin HEAD:main
 
-          echo "Generated diagrams committed successfully"
+          echo "Diagrams committed successfully"
