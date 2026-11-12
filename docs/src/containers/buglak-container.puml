@@ -1,0 +1,74 @@
+@startuml buglak-container
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма контейнеров (C4 Level 2) - Электронная платформа библиотеки
+
+' === АКТОРЫ ===
+Person(guest, "Гость", "Просматривает публичный каталог и рейтинги")
+Person(reader, "Читатель", "Поиск, бронирование, электронное чтение, заявки, оплата штрафов")
+Person(librarian, "Библиотекарь", "Выдача и возврат изданий, работа с бронями")
+Person(acquisition, "Комплектатор", "Учёт фонда, обработка заявок на закупку")
+Person(admin, "Администратор", "Управление платформой и аналитика")
+
+' === ГРАНИЦА СИСТЕМЫ ===
+System_Boundary(library, "Электронная платформа библиотеки") {
+
+    Container(proxy, "Reverse Proxy", "Nginx", "Единая точка входа: TLS-терминация, раздача статики SPA, маршрутизация запросов на Backend API, ограничение частоты запросов")
+
+    Container(web_app, "Web-приложение (SPA)", "Vue.js 3, Pinia, Vue Router, Vite", "Интерфейс для всех ролей: каталог, личный кабинет, читалка, панели библиотекаря, комплектатора и администратора")
+
+    Container(backend_api, "Backend API", "Node.js, NestJS (TypeScript)", "Бизнес-логика: каталог, брони, выдача, заявки, штрафы, отзывы, RBAC-авторизация, JWT, интеграции с внешними сервисами")
+
+    Container(worker, "Фоновый обработчик задач", "Node.js, BullMQ", "Асинхронные задачи: отправка писем, напоминания о возврате, начисление штрафов, синхронизация метаданных с Open Library")
+
+    Container(analytics, "Сервис аналитики и прогнозов", "Python, FastAPI", "Анализ спроса и трендов, прогноз востребованности изданий, рекомендации к закупке")
+
+    ContainerDb(database, "База данных", "PostgreSQL 16", "Фонд, читатели, брони, выдачи, заявки, штрафы, отзывы, результаты аналитики; полнотекстовый поиск по каталогу")
+
+    ContainerDb(cache, "Кэш и брокер очередей", "Redis", "Кэш каталога и рейтингов, refresh-сессии, очереди задач для BullMQ")
+
+    Container(file_storage, "Хранилище файлов", "RustFS (S3-совместимое)", "Электронные книги (PDF/EPUB), обложки, вложения; выдача по временным подписанным ссылкам")
+}
+
+' === ВНЕШНИЕ СИСТЕМЫ ===
+System_Ext(open_library, "Open Library", "Метаданные книг, обложки, данные о трендах")
+System_Ext(mail_provider, "Почтовый сервис (SMTP)", "Доставка email-уведомлений")
+System_Ext(payment, "ЮKassa", "Приём онлайн-оплаты штрафов")
+System_Ext(sso, "Провайдер OAuth 2.0", "Вход через внешний аккаунт")
+
+' === СВЯЗИ: ПОЛЬЗОВАТЕЛИ ===
+Rel(guest, proxy, "Открывает каталог и рейтинги", "HTTPS")
+Rel(reader, proxy, "Работает с платформой", "HTTPS")
+Rel(librarian, proxy, "Работает с платформой", "HTTPS")
+Rel(acquisition, proxy, "Работает с платформой", "HTTPS")
+Rel(admin, proxy, "Работает с платформой", "HTTPS")
+
+' === СВЯЗИ: ВНУТРИ СИСТЕМЫ ===
+Rel(proxy, web_app, "Отдаёт статические файлы SPA", "HTTP")
+Rel(web_app, proxy, "Вызывает API", "REST/HTTPS, JSON")
+Rel(proxy, backend_api, "Проксирует запросы /api", "HTTP/1.1")
+
+Rel(backend_api, database, "Чтение и запись данных", "SQL/TCP (pg)")
+Rel(backend_api, cache, "Кэширование, хранение сессий", "RESP/TCP")
+Rel(backend_api, file_storage, "Загрузка файлов, генерация подписанных ссылок", "S3 API/HTTP")
+Rel(backend_api, cache, "Постановка задач в очередь", "RESP/TCP")
+Rel(backend_api, analytics, "Запрос прогнозов и рекомендаций", "REST/HTTP, JSON")
+
+Rel(worker, cache, "Получает задачи из очереди", "RESP/TCP")
+Rel(worker, database, "Читает и обновляет данные (штрафы, статусы)", "SQL/TCP (pg)")
+
+Rel(analytics, database, "Читает историю выдач, сохраняет результаты", "SQL/TCP (psycopg)")
+
+Rel(reader, file_storage, "Скачивает книгу по подписанной ссылке", "HTTPS")
+
+' === СВЯЗИ: ВНЕШНИЕ СИСТЕМЫ ===
+Rel(worker, mail_provider, "Отправляет письма", "SMTP/TLS")
+Rel(worker, open_library, "Синхронизирует метаданные", "REST/HTTPS, JSON")
+Rel(analytics, open_library, "Запрашивает данные о трендах", "REST/HTTPS, JSON")
+Rel(backend_api, payment, "Создаёт платёж за штраф", "REST/HTTPS, JSON")
+Rel(payment, backend_api, "Уведомляет о статусе платежа", "Webhook/HTTPS")
+Rel(backend_api, sso, "Проверка входа через внешний аккаунт", "OAuth 2.0 / OIDC, HTTPS")
+
+@enduml
