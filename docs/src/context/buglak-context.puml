@@ -1,4 +1,4 @@
-@startuml L1 Diagram
+@startuml buglak-context
 !include <C4/C4_Context>
 
 LAYOUT_WITH_LEGEND()
