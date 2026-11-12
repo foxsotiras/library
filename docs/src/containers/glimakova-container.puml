@@ -1,4 +1,4 @@
-@startuml L2 Diagram
+@startuml glimakova-container
 !include <C4/C4_Container>
 
 LAYOUT_WITH_LEGEND()
