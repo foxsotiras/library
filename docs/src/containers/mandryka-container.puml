@@ -10,11 +10,11 @@ Person(librarian, "Библиотекарь", "Обрабатывает заяв
 Person(admin, "Администратор", "Управляет системой, смотрит аналитику")
 
 System_Boundary(library, "Интеллектуальная библиотека") {
-    Container(web_app, "Веб-приложение", "React", "Обеспечивает интерфейс читателя, библиотекаря и администратора")
-    Container(api_gateway, "Backend API", "Node.js", "Основной бэкенд системы. Реализует бизнес-логику")
-    Container(ml_service, "ML-сервис", "Python", "Анализ трендов")
-    ContainerDb(database, "База данных", "PostgreSQL", "Хранение данных")
-    Container(storage, "Хранилище электронных книг", "RustFS", "Файлы книг")
+  Container(web_app, "Веб-приложение", "React", "Обеспечивает интерфейс читателя, библиотекаря и администратора")
+  Container(api_gateway, "Backend API", "Node.js", "Основной бэкенд системы. Реализует бизнес-логику")
+  Container(ml_service, "ML-сервис", "Python", "Анализ трендов")
+  ContainerDb(database, "База данных", "PostgreSQL", "Хранение данных")
+  Container(storage, "Хранилище электронных книг", "RustFS", "Файлы книг")
 }
 
 System_Ext(trends, "Сервис мировых трендов", "Внешний источник данных о популярных книгах (например, Open Library)")
