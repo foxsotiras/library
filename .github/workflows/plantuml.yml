@@ -1,0 +1,173 @@
+name: Render PlantUML
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/src/**/*.puml'
+      - '.github/workflows/plantuml.yml'
+
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - 'docs/src/**/*.puml'
+      - '.github/workflows/plantuml.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plantuml-main
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout репозитория
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Установка Java и зависимостей
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz fonts-dejavu-core
+
+      # 3. Установка PlantUML
+      - name: Install PlantUML
+        run: |
+          curl -fL --retry 3 \
+            -o /tmp/plantuml.jar \
+            https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar
+
+          java -jar /tmp/plantuml.jar -version
+
+      # 4. Проверка синтаксиса
+      - name: Validate PlantUML
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -d docs/src ]; then
+            echo "::error::Directory docs/src not found"
+            exit 1
+          fi
+
+          mapfile -d '' files < <(
+            find docs/src -type f -name '*.puml' -print0
+          )
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No PlantUML files found"
+            exit 0
+          fi
+
+          # Проверка запрещённых конструкций
+          if grep -nEi \
+            '(^|[^[:alnum:]_])(Rel_|Lay_)[[:alnum:]_]*|(^|[^[:alnum:]_])skinparam([^[:alnum:]_]|$)' \
+            "${files[@]}"; then
+
+            echo "::error::Forbidden PlantUML syntax"
+            exit 1
+          fi
+
+          # Проверка синтаксиса PlantUML
+          for file in "${files[@]}"; do
+            echo "Checking: $file"
+
+            java -jar /tmp/plantuml.jar \
+              --check-syntax "$file"
+          done
+
+          echo "Validation successful"
+
+      # 5. Генерация PNG и SVG
+      - name: Render diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p docs/images
+
+          while IFS= read -r -d '' file; do
+            relative="${file#docs/src/}"
+            directory="$(dirname "$relative")"
+            filename="$(basename "$file" .puml)"
+
+            output="docs/images/$directory"
+
+            mkdir -p "$output"
+            output="$(realpath "$output")"
+
+            echo "Rendering: $file"
+
+            for format in png svg; do
+              java -jar /tmp/plantuml.jar \
+                --format "$format" \
+                --stop-on-error \
+                --output-dir "$output" \
+                "$file"
+
+              test -s "$output/$filename.$format"
+            done
+
+          done < <(
+            find docs/src -type f -name '*.puml' -print0
+          )
+
+          echo "Rendering completed"
+
+      # 6. Загрузка артефактов
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantuml-diagrams
+          path: |
+            docs/images/**/*.png
+            docs/images/**/*.svg
+          if-no-files-found: warn
+
+      # 7. Создание отдельного коммита
+      - name: Commit generated diagrams
+        if: >
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Добавляем сгенерированные изображения
+          git add -A -- docs/images/
+
+          # Если изменений нет — коммит не нужен
+          if git diff --cached --quiet; then
+            echo "No diagram changes detected"
+            exit 0
+          fi
+
+          # Настройка автора коммита
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Создаём новый коммит
+          git commit -m "docs: generate PlantUML diagrams"
+          git push origin HEAD:main
+
+          echo "Generated diagrams committed successfully"
