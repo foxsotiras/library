@@ -106,7 +106,6 @@ jobs:
 
           echo "Validation successful"
 
-      # 5. Генерация изображений
       - name: Render diagrams
         shell: bash
         run: |
@@ -119,30 +118,46 @@ jobs:
             directory="$(dirname "$relative")"
             filename="$(basename "$file" .puml)"
 
-            output="docs/images/$directory"
+            # Выходная директория
+            if [[ "$directory" == "." ]]; then
+              output="docs/images"
+            else
+              output="docs/images/$directory"
+            fi
 
             mkdir -p "$output"
             output="$(realpath "$output")"
 
+            # Абсолютный путь к исходнику
+            source="$(realpath "$file")"
+            source_dir="$(dirname "$source")"
+
             echo "Rendering: $file"
+            echo "Output directory: $output"
 
             for format in png svg; do
-              echo "Generating $format..."
+              expected="$output/$filename.$format"
 
-              if ! java -jar /tmp/plantuml.jar \
-                --format "$format" \
-                --output-dir "$output" \
-                "$file"; then
+              echo "Generating: $expected"
 
+              # Запускаем из директории исходника,
+              # чтобы сохранить относительные !include
+              if ! (
+                cd "$source_dir"
+
+                java -jar /tmp/plantuml.jar \
+                  --pipe \
+                  --format "$format" \
+                  < "$source" \
+                  > "$expected"
+              ); then
+                rm -f -- "$expected"
                 echo "Render failed: $file ($format)"
                 exit 1
               fi
 
-              expected="$output/$filename.$format"
-
-              if [ ! -s "$expected" ]; then
-                echo "Output not found: $expected"
-                ls -lah "$output"
+              if [[ ! -s "$expected" ]]; then
+                echo "Empty output: $expected"
                 exit 1
               fi
 
@@ -153,7 +168,7 @@ jobs:
             find docs/src -type f -name '*.puml' -print0
           )
 
-          echo "Rendering completed"
+          echo "All diagrams rendered successfully"
 
       # 6. Удаление изображений без исходных .puml
       - name: Cleanup obsolete diagrams
