@@ -1,0 +1,36 @@
+@startuml "Smart Library - Individual Container View"
+!include <C4/C4_Container.puml>
+LAYOUT_WITH_LEGEND()
+
+title Локальная диаграмма контейнеров (L2) — «Интеллектуальная библиотека»
+
+Person(guest, "Гость", "Просматривает каталог и тренды без регистрации")
+Person(reader, "Читатель", "Ищет книги, подаёт заявки, участвует в форуме")
+Person(publisher, "Правообладатель / Издательство", "Загружает книги, получает статистику востребованности")
+
+System_Boundary(library, "Интеллектуальная библиотека") {
+    Container(web_portal, "Клиентский портал", "React (SPA)", "Единая точка входа: каталог, форум, личный кабинет и раздел издательства")
+    Container(core_api, "Ядро библиотеки (API)", "Node.js / REST", "Права доступа, заявки, голосования, выдача книг и штрафы; оркестрирует остальные контейнеры")
+    Container(demand_ml, "Аналитика спроса", "Python (ML-сервис)", "Считает востребованность книг, строит рейтинги и рекомендации")
+    ContainerDb(registry_db, "Реестр библиотеки", "PostgreSQL", "Каталог, читатели, заявки, форумы, штрафы, метрики")
+    Container(file_store, "Хранилище файлов", "RustFS (S3-совместимое)", "Файлы электронных книг и обложки")
+}
+
+System_Ext(trends, "Сервис мировых трендов", "Внешний источник данных (например, Open Library)")
+System_Ext(mail, "Сервис email-рассылок", "Уведомления читателям и издательствам")
+System_Ext(bank, "Банковский эквайринг", "Приём оплаты штрафов")
+
+Rel(guest, web_portal, "Листает каталог и тренды", "HTTPS")
+Rel(reader, web_portal, "Ищет книги, подаёт заявки, пишет на форуме", "HTTPS")
+Rel(publisher, web_portal, "Загружает книги, смотрит статистику", "HTTPS")
+
+Rel(web_portal, core_api, "Запросы на чтение и изменение данных", "HTTPS/JSON")
+Rel(core_api, demand_ml, "Запрашивает расчёт востребованности", "HTTPS/JSON")
+Rel(core_api, registry_db, "Читает и пишет каталог, заявки, читателей", "SQL/TCP 5432")
+Rel(core_api, file_store, "Сохраняет и получает файлы книг", "HTTPS (S3 API)")
+
+Rel(core_api, trends, "Запрашивает данные о популярных книгах", "REST API/HTTPS")
+Rel(core_api, mail, "Отправляет уведомления", "SMTP")
+Rel(core_api, bank, "Передаёт запрос на оплату штрафа", "REST API/HTTPS")
+
+@enduml
