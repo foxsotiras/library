@@ -1,0 +1,70 @@
+@startuml containers
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма контейнеров C4 (Level 2) — ИС «Интеллектуальная библиотека»
+
+' === ГЛОБАЛЬНЫЕ АКТОРЫ (зона Тимлида) ===
+Person(reader, "Читатель", "Пользуется каталогом, личным кабинетом, форумами и электронным фондом")
+Person(librarian, "Библиотекарь", "Отдел обслуживания: выдача, возврат, регистрация читателей")
+Person(acquisitor, "Специалист по комплектованию", "Каталогизация, списание, заявки, аналитика")
+Person(moderator, "Модератор сообщества", "Жалобы и модерация форумов")
+Person(admin, "Администратор библиотеки", "Отчётность, учётные записи, настройки")
+
+' === ВНЕШНИЕ СИСТЕМЫ (единый утверждённый перечень) ===
+System_Ext(payment_gateway, "Платёжный шлюз", "ЮKassa / СБП")
+System_Ext(trends_api, "Внешние источники трендов", "Google Books API / Open Library")
+System_Ext(neb_catalog, "Сводный каталог НЭБ", "RUSMARC-записи")
+System_Ext(mail_service, "Почтовый сервис", "SMTP-провайдер")
+
+System_Boundary(library_system, "ИС «Интеллектуальная библиотека»") {
+    ' === СТУДЕНТ 1: Портал читателя ===
+    Container(reader_portal, "Портал читателя", "Vue.js 3 / Vite / Pinia (SPA)", "Каталог, бронирование, личный кабинет, форумы, заявки и голосование, онлайн-читалка, оплата штрафов.")
+
+    ' === СТУДЕНТ 2: Веб-панель сотрудников ===
+    Container(admin_web, "Панель сотрудника библиотеки", "Vue.js 3 / Vuetify (SPA)", "Рабочее место библиотекаря, комплектовщика, модератора и администратора: выдача/возврат, каталогизация, заявки, модерация, отчёты.")
+
+    ' === СТУДЕНТ 3: Ядро бэкенда и БД ===
+    Container(api_gateway, "Backend API & Core Service", "Node.js 20 / NestJS (TypeScript)", "Единая точка входа REST API. Бизнес-логика фонда, выдачи, броней, штрафов, форумов и заявок.")
+    ContainerDb(database, "Основная БД", "PostgreSQL 16", "Читатели, сотрудники, каталог, экземпляры, выдачи, брони, штрафы, форумы, заявки, голоса.")
+
+    ' === СТУДЕНТ 4: Аналитика и шина событий ===
+    Container(analytics_service, "Сервис аналитики востребованности", "Python 3.12 / gRPC / pandas", "Собирает события выдачи и мировые тренды, рассчитывает индекс востребованности и персональные рекомендации.")
+    ContainerQueue(message_broker, "Брокер событий", "RabbitMQ 3", "Асинхронная доставка доменных событий (выдача, возврат, бронь, голос).")
+
+    ' === СТУДЕНТ 5: Электронный фонд ===
+    Container(media_service, "Сервис электронного фонда", "Node.js 20 / Fastify", "Загрузка, хранение и потоковая выдача электронных изданий и обложек с проверкой прав доступа.")
+    ContainerDb(object_storage, "Объектное хранилище", "RustFS (S3-совместимое)", "Файлы e-книг (EPUB/PDF), обложки, вложения форумов.")
+}
+
+' === ПОЛЬЗОВАТЕЛИ → КЛИЕНТЫ ===
+Rel(reader, reader_portal, "Работает через браузер", "HTTPS")
+Rel(librarian, admin_web, "Оформляет выдачу и возврат", "HTTPS")
+Rel(acquisitor, admin_web, "Ведёт фонд и заявки", "HTTPS")
+Rel(moderator, admin_web, "Работает с очередью жалоб и модерацией", "HTTPS")
+Rel(admin, admin_web, "Формирует отчёты, управляет пользователями", "HTTPS")
+
+' === КЛИЕНТЫ → СЕРВИСЫ (инициатор — клиент) ===
+Rel(reader_portal, api_gateway, "Поиск, брони, ЛК, форумы, заявки, оплата", "HTTPS / JSON (REST)")
+Rel(admin_web, api_gateway, "Выдача, каталогизация, заявки, модерация, отчёты", "HTTPS / JSON (REST)")
+Rel(reader_portal, media_service, "Получает обложки и поток e-книги", "HTTPS (Range)")
+Rel(admin_web, media_service, "Загружает файлы e-изданий и обложки", "HTTPS / multipart")
+
+' === ВНУТРЕННЕЕ ВЗАИМОДЕЙСТВИЕ ===
+Rel(api_gateway, database, "Чтение / запись данных", "SQL / TCP 5432")
+Rel(api_gateway, message_broker, "Публикует доменные события", "AMQP / TCP 5672")
+Rel(analytics_service, message_broker, "Подписывается на события выдачи и голосования", "AMQP / TCP 5672")
+Rel(api_gateway, analytics_service, "Запрашивает рекомендации и рейтинг востребованности", "gRPC / HTTP2 50051")
+Rel(analytics_service, database, "Пишет агрегаты в схему analytics", "SQL / TCP 5432")
+Rel(media_service, api_gateway, "Проверяет токен и право доступа к изданию", "HTTPS / JSON (внутр.)")
+Rel(media_service, object_storage, "Сохраняет и читает объекты", "S3 API / HTTPS 9000")
+
+' === ВНЕШНИЕ ИНТЕГРАЦИИ ===
+Rel(api_gateway, payment_gateway, "Создаёт платёж по штрафу", "HTTPS / REST")
+Rel(payment_gateway, api_gateway, "Webhook о статусе платежа", "HTTPS / JSON")
+Rel(api_gateway, neb_catalog, "Импорт библиографических записей", "Z39.50 / TCP 210")
+Rel(api_gateway, mail_service, "Отправляет уведомления", "SMTP / TLS 587")
+Rel(analytics_service, trends_api, "Загружает мировые рейтинги популярности", "HTTPS / REST")
+
+@enduml
