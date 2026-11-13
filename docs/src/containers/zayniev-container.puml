@@ -1,4 +1,4 @@
-@startuml "Smart Library - Individual Container View"
+@startuml "zayniev-container"
 !include <C4/C4_Container.puml>
 LAYOUT_WITH_LEGEND()
 

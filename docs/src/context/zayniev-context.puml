@@ -1,4 +1,4 @@
-@startuml "Smart Library - Individual Context View"
+@startuml "zayniev-context"
 !include <C4/C4_Context.puml>
 LAYOUT_WITH_LEGEND()
 
