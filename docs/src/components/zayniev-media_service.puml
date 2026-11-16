@@ -1,0 +1,39 @@
+@startuml "zayniev-media_service"
+!include <C4/C4_Component.puml>
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма компонентов (Level 3) — Сервис электронного фонда [Node.js / Fastify]
+
+Container(reader_portal, "Портал читателя", "Vue.js 3 SPA", "Читает e-книги, загружает обложки")
+Container(admin_web, "Панель сотрудника", "Vue.js 3 SPA", "Загружает файлы e-изданий")
+Component_Ext(auth_comp, "auth_comp", "Backend API", "Проверка токена и прав на издание")
+ContainerDb(object_storage, "Объектное хранилище", "RustFS (S3-совместимое)", "Бакеты ebooks, covers, attachments")
+
+Container_Boundary(media_service, "Сервис электронного фонда") {
+    ' --- Слой API ---
+    Component(media_api, "media_api — Маршруты медиа-API", "Fastify Routes", "POST /media, GET /media/{id} (с поддержкой Range), GET /covers/{id}.")
+
+    ' --- Слой безопасности ---
+    Component(access_guard, "Контроль доступа", "Fastify preHandler hook", "Проверяет JWT и запрашивает у ядра право читателя на издание; кэширует решение.")
+
+    ' --- Слой бизнес-логики ---
+    Component(file_processor, "Обработчик файлов", "TypeScript + sharp + epub-parser", "Проверка формата и размера, извлечение метаданных, генерация превью обложек.")
+    Component(stream_service, "Сервис потоковой выдачи", "Node.js Streams", "Порционная отдача файла по HTTP Range без загрузки целиком в память.")
+
+    ' --- Слой хранилища ---
+    Component(storage_adapter, "Адаптер хранилища", "AWS SDK v3 (S3 Client)", "Операции put/get/head/delete к бакетам RustFS.")
+}
+
+Rel(reader_portal, media_api, "Запрашивает файл книги и обложки", "HTTPS (Range)")
+Rel(admin_web, media_api, "Загружает EPUB/PDF и обложки", "HTTPS / multipart")
+
+Rel(media_api, access_guard, "Проверяет запрос перед обработкой", "TS Call")
+Rel(access_guard, auth_comp, "POST /internal/access {token, editionId}", "HTTPS / JSON")
+Rel(media_api, file_processor, "Передаёт загруженный файл", "TS Call")
+Rel(media_api, stream_service, "Запрашивает поток диапазона байт", "TS Call")
+Rel(file_processor, storage_adapter, "Сохраняет файл и превью", "TS Call")
+Rel(stream_service, storage_adapter, "Читает объект по диапазону", "TS Call")
+
+Rel(storage_adapter, object_storage, "PutObject / GetObject (Range)", "S3 API / HTTPS 9000")
+
+@enduml
