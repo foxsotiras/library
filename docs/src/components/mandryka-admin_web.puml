@@ -1,0 +1,66 @@
+@startuml mandryka-admin_web
+!include <C4/C4_Component.puml>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма компонентов (Level 3) — Панель сотрудника библиотеки [Vue.js 3 SPA]
+
+Person(librarian, "Библиотекарь", "Отдел обслуживания")
+Person(acquisitor, "Специалист по комплектованию", "Отдел комплектования")
+Person(moderator, "Модератор сообщества", "Модерация форумов")
+Person(admin, "Администратор библиотеки", "Администрация")
+
+System_Ext(barcode_scanner, "Сканер штрихкодов", "USB HID-устройство на кафедре выдачи")
+
+' === СТЫКОВОЧНЫЕ ШЛЮЗЫ ДРУГИХ КОНТЕЙНЕРОВ (только по глобальным ID) ===
+Component_Ext(auth_comp, "auth_comp", "Backend API", "Вход сотрудников, учётные записи и роли")
+Component_Ext(catalog_comp, "catalog_comp", "Backend API", "Каталогизация, импорт НЭБ, списание, рейтинги")
+Component_Ext(loan_comp, "loan_comp", "Backend API", "Регистрация читателей, выдача, возврат")
+Component_Ext(community_comp, "community_comp", "Backend API", "Заявки, жалобы и модерация")
+Component_Ext(media_api, "media_api", "Сервис электронного фонда", "Приём файлов e-изданий")
+
+Container_Boundary(admin_web, "Панель сотрудника библиотеки") {
+    ' --- Слой представления ---
+    Component(rbac_router, "Маршрутизатор с RBAC", "Vue Router + Route Guards", "Показывает разделы по роли: librarian / acquisitor / moderator / admin.")
+    Component(circulation_ui, "Модуль обслуживания", "Vue SFC / Vuetify", "Регистрация читателей, выдача и возврат, продление, контроль просрочек и броней.")
+    Component(acquisition_ui, "Модуль комплектования", "Vue SFC / Vuetify", "Каталогизация, импорт из НЭБ, списание, рассмотрение заявок, загрузка e-версий.")
+    Component(moderation_ui, "Модуль модерации", "Vue SFC / Vuetify", "Очередь жалоб, скрытие сообщений, блокировка пользователей.")
+    Component(reports_ui, "Модуль отчётов и аналитики", "Vue SFC + ECharts", "Дашборд востребованности, отчёты о выдачах, штрафах и активности.")
+    Component(admin_ui, "Модуль администрирования", "Vue SFC / Vuetify", "Учётные записи сотрудников, роли, настройки системы.")
+    ' --- Слой интеграции с оборудованием ---
+    Component(scanner_adapter, "Адаптер сканера", "TypeScript (keyboard-wedge listener)", "Распознаёт ввод штрихкода экземпляра или читательского билета.")
+    ' --- Слой состояния и доступа к сети ---
+    Component(state_store, "Хранилище состояния", "Pinia", "Сессия сотрудника, его роль, текущая операция выдачи.")
+    Component(api_client, "API-клиент", "Axios + JWT Interceptor", "Запросы к бэкенду, обновление токена, обработка ошибок.")
+    Component(upload_client, "Клиент загрузки файлов", "Axios (multipart, progress)", "Передача EPUB/PDF и обложек в сервис электронного фонда.")
+}
+
+Rel(librarian, rbac_router, "Открывает раздел обслуживания", "HTTPS")
+Rel(acquisitor, rbac_router, "Открывает раздел комплектования", "HTTPS")
+Rel(moderator, rbac_router, "Открывает раздел модерации", "HTTPS")
+Rel(admin, rbac_router, "Открывает отчёты и администрирование", "HTTPS")
+Rel(barcode_scanner, scanner_adapter, "Передаёт код экземпляра / билета", "USB HID")
+
+Rel(rbac_router, state_store, "Проверяет роль сотрудника", "JS Call")
+Rel(rbac_router, circulation_ui, "Монтирует (librarian)", "Vue Router")
+Rel(rbac_router, acquisition_ui, "Монтирует (acquisitor)", "Vue Router")
+Rel(rbac_router, moderation_ui, "Монтирует (moderator)", "Vue Router")
+Rel(rbac_router, reports_ui, "Монтирует (acquisitor / admin)", "Vue Router")
+Rel(rbac_router, admin_ui, "Монтирует (admin)", "Vue Router")
+
+Rel(scanner_adapter, circulation_ui, "Генерирует событие scan(code)", "JS Event")
+Rel(circulation_ui, state_store, "Выдача / возврат / регистрация", "JS Call (Pinia action)")
+Rel(acquisition_ui, state_store, "Каталогизация и решения по заявкам", "JS Call (Pinia action)")
+Rel(acquisition_ui, upload_client, "Передаёт файл e-издания", "JS Call")
+Rel(moderation_ui, state_store, "Решения по жалобам и блокировки", "JS Call (Pinia action)")
+Rel(reports_ui, state_store, "Запрашивает отчёты и рейтинги", "JS Call (Pinia action)")
+Rel(admin_ui, state_store, "Учётные записи и настройки", "JS Call (Pinia action)")
+Rel(state_store, api_client, "Вызывает методы API", "JS Call (async)")
+
+Rel(api_client, auth_comp, "/auth, /users, /roles", "HTTPS / JSON")
+Rel(api_client, loan_comp, "/readers, /loans, /bookings", "HTTPS / JSON")
+Rel(api_client, catalog_comp, "/catalog, /import/neb, /reports/demand", "HTTPS / JSON")
+Rel(api_client, community_comp, "/requests, /moderation/complaints", "HTTPS / JSON")
+Rel(upload_client, media_api, "POST /media (multipart/form-data)", "HTTPS / multipart")
+
+@enduml
