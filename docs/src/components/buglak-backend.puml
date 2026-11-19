@@ -1,0 +1,76 @@
+@startuml buglak-backend
+' Диаграмма компонентов C4 (Level 3) — Буглак: Backend API & Core Service
+' Открытые стыковочные шлюзы (глобальные ID): auth_comp, catalog_comp, loan_comp, payment_comp, community_comp
+' Каждый шлюз — NestJS-модуль со своим контроллером, поэтому внешние вызовы адресуются прямо ему.
+' Стили и легенда — только в мастер-файле.
+!include <C4/C4_Component>
+
+title Диаграмма компонентов (Level 3) — Backend API & Core Service [Node.js / NestJS]
+
+Container(reader_portal, "Портал читателя", "Vue.js 3 SPA", "Глимакова")
+Container(admin_web, "Панель сотрудника", "Vue.js 3 SPA", "Мандрыка")
+Container(media_service, "Сервис электронного фонда", "Node.js / Fastify", "Зайниев")
+ContainerDb(database, "Основная БД", "PostgreSQL 16", "Данные библиотеки")
+ContainerQueue(message_broker, "Брокер событий", "RabbitMQ", "Exchange library.events")
+Component_Ext(analytics_api, "analytics_api", "Сервис аналитики (Миронов)", "gRPC: рейтинг и рекомендации")
+System_Ext(payment_gateway, "Платёжный шлюз", "ЮKassa / СБП")
+System_Ext(neb_catalog, "Сводный каталог НЭБ", "RUSMARC")
+System_Ext(mail_service, "Почтовый сервис", "SMTP")
+
+Container_Boundary(api_gateway, "Backend API & Core Service") {
+  ' --- Слой API и бизнес-логики (модуль = Controller + Service) ---
+  Component(auth_comp, "auth_comp — Модуль авторизации", "NestJS Module / Passport-JWT / bcrypt", "Вход, выпуск и проверка JWT, роли reader / librarian / acquisitor / moderator / admin, /internal/access.")
+  Component(catalog_comp, "catalog_comp — Модуль каталога и фонда", "NestJS Module", "Единый каталог бумажного и электронного фонда, экземпляры, каталогизация, списание, отчёты востребованности.")
+  Component(loan_comp, "loan_comp — Модуль выдачи и бронирования", "NestJS Module", "Регистрация читателей, выдача, возврат, продление, брони, начисление штрафов.")
+  Component(payment_comp, "payment_comp — Модуль штрафов и оплаты", "NestJS Module", "Создание платежей, обработка webhook, закрытие задолженности.")
+  Component(community_comp, "community_comp — Модуль сообщества", "NestJS Module", "Форумы, жалобы и модерация, заявки на комплектование, голосование.")
+  Component(notification_comp, "Модуль уведомлений", "NestJS Schedule + Nodemailer", "Плановая рассылка о сроках возврата, бронях, штрафах.")
+
+  ' --- Слой интеграционных адаптеров ---
+  Component(import_comp, "Адаптер импорта НЭБ", "Node.js Z39.50 client", "Поиск и импорт RUSMARC-записей.")
+  Component(event_publisher, "Публикатор событий", "amqplib", "Публикует loan.issued, loan.returned, booking.created, vote.cast.")
+  Component(analytics_client, "Клиент аналитики", "@grpc/grpc-js", "Вызывает analytics_api.")
+
+  ' --- Слой доступа к данным ---
+  Component(data_access, "Слой доступа к данным", "TypeORM Repositories", "Сущности, репозитории, транзакции, миграции схемы public.")
+}
+
+' === Входящие сетевые вызовы — только к стыковочным шлюзам ===
+Rel(reader_portal, auth_comp, "Вход, обновление токена", "HTTPS / JSON")
+Rel(reader_portal, catalog_comp, "Поиск, рекомендации", "HTTPS / JSON")
+Rel(reader_portal, loan_comp, "Брони, выдачи", "HTTPS / JSON")
+Rel(reader_portal, payment_comp, "Штрафы, оплата", "HTTPS / JSON")
+Rel(reader_portal, community_comp, "Форумы, жалобы, заявки, голоса", "HTTPS / JSON")
+Rel(admin_web, auth_comp, "Учётные записи и роли", "HTTPS / JSON")
+Rel(admin_web, catalog_comp, "Каталогизация, импорт, отчёты", "HTTPS / JSON")
+Rel(admin_web, loan_comp, "Выдача, возврат, регистрация", "HTTPS / JSON")
+Rel(admin_web, community_comp, "Заявки, модерация", "HTTPS / JSON")
+Rel(media_service, auth_comp, "POST /internal/access", "HTTPS / JSON")
+Rel(payment_gateway, payment_comp, "Webhook об оплате", "HTTPS / JSON")
+
+' === Внутрипроцессные вызовы между модулями ===
+Rel(loan_comp, auth_comp, "Проверка роли сотрудника", "TS Call")
+Rel(loan_comp, catalog_comp, "Проверяет доступность экземпляра", "TS Call")
+Rel(loan_comp, payment_comp, "Начисляет штраф за просрочку", "TS Call")
+Rel(loan_comp, event_publisher, "Сообщает о выдаче / возврате / брони", "TS Call")
+Rel(community_comp, event_publisher, "Сообщает о голосе за заявку", "TS Call")
+Rel(catalog_comp, import_comp, "Импортирует запись по ISBN", "TS Call")
+Rel(catalog_comp, analytics_client, "Получает рейтинг и рекомендации", "TS Call")
+Rel(notification_comp, loan_comp, "Выбирает выдачи с подходящим сроком", "TS Call")
+
+' === Доступ к данным ===
+Rel(auth_comp, data_access, "Пользователи и роли", "TS Call")
+Rel(catalog_comp, data_access, "Издания и экземпляры", "TS Call")
+Rel(loan_comp, data_access, "Читатели, выдачи, брони", "TS Call")
+Rel(payment_comp, data_access, "Штрафы и платежи", "TS Call")
+Rel(community_comp, data_access, "Темы, сообщения, жалобы, заявки, голоса", "TS Call")
+
+' === Исходящие сетевые вызовы ===
+Rel(data_access, database, "SQL-запросы и транзакции", "SQL / TCP 5432")
+Rel(event_publisher, message_broker, "Публикует в exchange library.events", "AMQP / TCP 5672")
+Rel(analytics_client, analytics_api, "GetDemandRating / GetRecommendations", "gRPC / HTTP2 50051")
+Rel(payment_comp, payment_gateway, "Создаёт платёж", "HTTPS / REST")
+Rel(import_comp, neb_catalog, "Поисковый запрос и выгрузка записей", "Z39.50 / TCP 210")
+Rel(notification_comp, mail_service, "Отправляет письма", "SMTP / TLS 587")
+
+@enduml
