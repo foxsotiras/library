@@ -1,0 +1,45 @@
+@startuml mironov-analytics
+' Диаграмма компонентов C4 (Level 3) — Миронов: Сервис аналитики востребованности
+' Открытый стыковочный шлюз (глобальный ID): analytics_api. Стили и легенда — только в мастер-файле.
+!include <C4/C4_Component>
+
+title Диаграмма компонентов (Level 3) — Сервис аналитики востребованности [Python 3.12]
+
+Container(api_gateway, "Backend API & Core Service", "Node.js / NestJS", "Буглак: вызывает из analytics_client")
+ContainerQueue(message_broker, "Брокер событий", "RabbitMQ", "Очередь analytics.events")
+ContainerDb(database, "Основная БД", "PostgreSQL 16", "Схема analytics")
+System_Ext(trends_api, "Внешние источники трендов", "Google Books API / Open Library")
+
+Container_Boundary(analytics_service, "Сервис аналитики востребованности") {
+    ' --- Слой входящих интерфейсов ---
+    Component(analytics_api, "analytics_api — gRPC-сервер", "grpcio (asyncio) + Protobuf", "Методы GetDemandRating, GetRecommendations, GetTrendReport.")
+    Component(event_consumer, "Обработчик событий", "aio-pika Consumer", "Принимает события выдачи, возврата, брони и голосования, обеспечивает идемпотентность.")
+    Component(trends_collector, "Сборщик мировых трендов", "APScheduler + httpx", "Раз в сутки загружает рейтинги популярности и метаданные изданий.")
+
+    ' --- Слой бизнес-логики ---
+    Component(demand_scoring, "Расчёт индекса востребованности", "Python + pandas (паттерн Strategy)", "Стратегии: внутренняя популярность, мировые тренды, гибридная взвешенная.")
+    Component(recommendation_engine, "Движок рекомендаций", "Python + scikit-learn", "Персональные рекомендации по истории чтения и жанровой близости (косинусное сходство).")
+    Component(report_builder, "Построитель отчётов", "Python + pandas", "Сводные отчёты для отдела комплектования: топ запросов, дефицит экземпляров.")
+
+    ' --- Слой доступа к данным ---
+    Component(analytics_repo, "Репозиторий аналитики", "SQLAlchemy 2.0 + asyncpg", "Агрегаты выдач, тренды, индексы, рекомендации в схеме analytics.")
+}
+
+Rel(api_gateway, analytics_api, "Запрашивает рейтинг, рекомендации и отчёты", "gRPC / HTTP2 50051")
+Rel(event_consumer, message_broker, "Подписывается на очередь analytics.events", "AMQP / TCP 5672")
+Rel(trends_collector, trends_api, "Запрашивает популярные издания", "HTTPS / REST (JSON)")
+
+Rel(analytics_api, demand_scoring, "Получает индекс востребованности", "Python Call")
+Rel(analytics_api, recommendation_engine, "Получает рекомендации читателю", "Python Call")
+Rel(analytics_api, report_builder, "Формирует отчёт", "Python Call")
+Rel(event_consumer, analytics_repo, "Обновляет агрегаты выдач и голосов", "Python Call")
+Rel(trends_collector, analytics_repo, "Сохраняет снимок трендов", "Python Call")
+Rel(trends_collector, demand_scoring, "Инициирует пересчёт индексов", "Python Call")
+Rel(report_builder, demand_scoring, "Использует индексы востребованности", "Python Call")
+Rel(demand_scoring, analytics_repo, "Читает агрегаты, пишет индексы", "Python Call")
+Rel(recommendation_engine, analytics_repo, "Читает историю чтения и индексы", "Python Call")
+Rel(report_builder, analytics_repo, "Читает агрегаты", "Python Call")
+
+Rel(analytics_repo, database, "SQL-запросы к схеме analytics", "SQL / TCP 5432")
+
+@enduml
