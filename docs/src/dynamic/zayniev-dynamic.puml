@@ -1,0 +1,25 @@
+@startuml "zayniev-dynamic"
+!include <C4/C4_Dynamic>
+
+title Загрузка и привязка электронного издания
+Person(acquisitor, "Комплектовщик")
+System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
+  Container(admin_web, "Панель сотрудника", "Vue.js 3")
+  Container(media_service, "Электронный фонд", "Fastify")
+  Container(api_gateway, "Backend API", "NestJS")
+  ContainerDb(object_storage, "Файловое хранилище", "RustFS / S3")
+  ContainerDb(database, "База данных", "PostgreSQL")
+}
+Rel(acquisitor, admin_web, "Выбрать EPUB / PDF / обложку", "UI", $index="1")
+Rel(admin_web, media_service, "POST /media multipart", "HTTPS 443", $index="2")
+Rel(media_service, api_gateway, "POST /internal/access", "HTTPS 3000 mTLS", $index="3")
+Rel(api_gateway, media_service, "Роль acquisitor, editionId", "HTTPS 3000", $index="4")
+Rel(media_service, media_service, "FileProcessingService.handleUpload", "TS Call", $index="5")
+Rel(media_service, object_storage, "PutObject оригинала и превью", "S3 HTTPS 9000", $index="6")
+Rel(media_service, admin_web, "201 StoredMedia, sha256", "HTTPS 443", $index="7")
+Rel(media_service, object_storage, "При отказе: deleteObject\nсохраненного", "S3 HTTPS 9000", $index="8")
+Rel(media_service, admin_web, "При отказе: Ошибка загрузки", "HTTPS 443", $index="9")
+Rel(admin_web, api_gateway, "PATCH /catalog/{id}/media", "HTTPS 443", $index="10")
+Rel(api_gateway, database, "Привязка mediaId; COMMIT", "SQL TLS 5432", $index="11")
+Rel(api_gateway, admin_web, "200; издание опубликовано", "HTTPS 443", $index="12")
+@enduml
