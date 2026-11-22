@@ -1,0 +1,26 @@
+@startuml glimakova-dynamic
+!include <C4/C4_Deployment>
+
+title Чтение электронного издания
+
+Person(reader, "Читатель")
+
+System_Boundary(library, "ИС Интеллектуальная библиотека") {
+  Container(reader_portal, "Портал читателя", "Vue.js 3")
+  Container(media_service, "Электронный фонд", "Fastify")
+  Container(api_gateway, "Backend API", "NestJS")
+  ContainerDb(database, "База данных", "PostgreSQL")
+  ContainerDb(object_storage, "Файловое хранилище", "RustFS / S3")
+}
+
+Rel(reader, reader_portal, "Открыть издание", "UI")
+Rel(reader_portal, media_service, "GET /media/{id}, Range", "HTTPS 443")
+Rel(media_service, api_gateway, "POST /internal/access", "HTTPS 3000, mTLS")
+Rel(api_gateway, database, "Право на editionId", "SQL 5432, TLS")
+Rel(api_gateway, media_service, "allow / deny", "HTTPS 3000")
+Rel(media_service, object_storage, "GetObject Range", "S3 HTTPS 9000")
+Rel(object_storage, media_service, "Байты и длина", "HTTPS 9000")
+Rel(media_service, reader_portal, "206, Content-Range", "HTTPS 443")
+Rel(reader_portal, reader, "Отобразить фрагмент", "JS Call")
+Rel(media_service, reader_portal, "При отказе: 401 / 403 / 416", "HTTPS 443")
+@enduml
