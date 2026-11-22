@@ -1,0 +1,26 @@
+@startuml glimakova-landscape
+!include <C4/C4_Context>
+
+title Системный ландшафт — Портал читателя
+
+Enterprise_Boundary(municipal, "Муниципальная цифровая среда") {
+  System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
+
+  System_Boundary(team_boundary, "Граница ответственности команды") {
+    System(library, "Интеллектуальная библиотека", "Каталог, обслуживание, аналитика и электронный фонд")
+  }
+
+  System_Ext(iam, "Муниципальная IAM", "Проектная интеграция SSO")
+}
+
+System_Ext(payment_gateway, "Платежный шлюз", "Внешняя финансовая система")
+System_Ext(mail_service, "Почтовый сервис", "Доставка уведомлений")
+
+Rel(city_portal, library, "Переход к каталогу", "HTTPS 443")
+Rel(library, iam, "Вход через SSO", "OIDC / HTTPS 443")
+Rel(library, payment_gateway, "Создание платежа", "REST / HTTPS 443")
+Rel(payment_gateway, library, "Статус оплаты", "Webhook / HTTPS 443")
+Rel(library, mail_service, "Уведомления", "SMTP / STARTTLS 587")
+
+footer Зона участника 1: reader_portal. IAM и портал — расширение ЛР4.
+@enduml
