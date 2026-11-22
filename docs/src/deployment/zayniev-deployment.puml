@@ -1,0 +1,28 @@
+@startuml "zayniev-deployment"
+!include <C4/C4_Deployment>
+
+title Развертывание электронного фонда
+
+Node(ingress, "Два Nginx и VIP", "DMZ")
+Deployment_Node(media_a, "Медиаузел A") {
+  Container(media_service_a, "media_service A", "Node.js 20 / Fastify")
+}
+Deployment_Node(media_b, "Медиаузел B") {
+  Container(media_service_b, "media_service B", "Node.js 20 / Fastify")
+}
+Deployment_Node(storage_node, "Узел объектов") {
+  ContainerDb(object_storage, "object_storage", "S3 API")
+}
+Deployment_Node(backup_node, "Отдельный узел копий") {
+  Node(backup, "Резервные копии", "S3-совместимый приемник")
+}
+Container_Ext(api_gateway, "api_gateway", "NestJS")
+Rel(ingress, media_service_a, "Балансирует загрузки и чтение", "HTTPS 3100 / mTLS")
+Rel(ingress, media_service_b, "Балансирует загрузки и чтение", "HTTPS 3100 / mTLS")
+Rel(media_service_a, object_storage, "PutObject / GetObject Range", "S3 / HTTPS 9000")
+Rel(media_service_b, object_storage, "PutObject / GetObject Range", "S3 / HTTPS 9000")
+Rel(media_service_a, api_gateway, "POST /internal/access", "HTTPS 3000 / mTLS")
+Rel(media_service_b, api_gateway, "POST /internal/access", "HTTPS 3000 / mTLS")
+Rel(object_storage, backup, "Копирует объекты отдельным заданием", "S3 / HTTPS 443; шифрование копий")
+
+@enduml
