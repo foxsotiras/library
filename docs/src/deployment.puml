@@ -1,0 +1,41 @@
+@startuml deployment
+!include <C4/C4_Deployment>
+
+LAYOUT_WITH_LEGEND()
+title Общая инфраструктура интеллектуальной библиотеки
+
+Deployment_Node(clients, "Клиентские устройства") {
+  Container(reader_portal, "reader_portal", "Vue.js 3")
+  Container(admin_web, "admin_web", "Vue.js 3")
+}
+Deployment_Node(dmz, "DMZ") {
+  Node(ingress, "Reverse proxy A и B", "Nginx / TLS 1.3")
+}
+Deployment_Node(app_net, "Приватная сеть приложений") {
+  Container(api_gateway, "api_gateway × 2", "Node.js 20 / NestJS")
+  Container(analytics_service, "analytics_service × 2", "Python 3.12 / gRPC")
+  Container(media_service, "media_service × 2", "Node.js 20 / Fastify")
+  ContainerQueue(message_broker, "message_broker", "RabbitMQ / 3 VM")
+}
+Deployment_Node(data_net, "Изолированная сеть данных") {
+  ContainerDb(database, "database Primary", "PostgreSQL 16")
+  ContainerDb(database_replica, "database Standby", "PostgreSQL 16")
+  ContainerDb(object_storage, "object_storage", "RustFS / S3")
+  Node(backup, "Резервный узел", "Шифрованные копии")
+}
+Rel(reader_portal, ingress, "Каталог, API, чтение", "HTTPS 443")
+Rel(admin_web, ingress, "Обслуживание, загрузки, отчеты", "HTTPS 443")
+Rel(ingress, api_gateway, "Передает REST", "HTTPS 3000 / mTLS")
+Rel(ingress, media_service, "Передает multipart и Range", "HTTPS 3100 / mTLS")
+Rel(api_gateway, database, "Транзакции и outbox", "SQL / TLS 5432")
+Rel(analytics_service, database, "Пишет схему analytics", "SQL / TLS 5432")
+Rel(api_gateway, message_broker, "Публикует события", "AMQPS 5671")
+Rel(analytics_service, message_broker, "Открывает подписку и ACK", "AMQPS 5671")
+Rel(api_gateway, analytics_service, "Вызывает analytics_api", "gRPC / mTLS 50051")
+Rel(media_service, api_gateway, "Проверяет доступ", "HTTPS 3000 / mTLS")
+Rel(media_service, object_storage, "Сохраняет и читает", "S3 / HTTPS 9000")
+Rel(database, database_replica, "Реплицирует WAL", "Streaming replication / TLS 5432")
+Rel(database, backup, "Копия БД и WAL", "HTTPS 443; шифрование")
+Rel(object_storage, backup, "Копия объектов", "S3 / HTTPS 443; шифрование")
+
+@enduml
