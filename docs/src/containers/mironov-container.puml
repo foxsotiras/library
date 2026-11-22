@@ -1,6 +1,5 @@
 @startuml mironov-container
 !include <C4/C4_Container>
-
 LAYOUT_WITH_LEGEND()
 
 title Диаграмма контейнеров C4 (Level 2) — Система «Интеллектуальная библиотека»
@@ -12,24 +11,23 @@ Person(moderator, "Модератор форума", "Следит за поря
 Person(admin, "Администратор", "Управляет ролями, смотрит аналитику")
 
 System_Boundary(biblio, "Интеллектуальная библиотека") {
+  Container(web, "Веб-приложение", "React + TypeScript", "SPA-интерфейс для всех ролей: каталог, личный кабинет, форум, админка")
 
-    Container(web, "Веб-приложение", "React + TypeScript", "SPA-интерфейс для всех ролей: каталог, личный кабинет, форум, админка")
+  Container(gateway, "API Gateway", "Nginx + JWT", "Единая точка входа, маршрутизация, аутентификация и rate limiting")
 
-    Container(gateway, "API Gateway", "Nginx + JWT", "Единая точка входа, маршрутизация, аутентификация и rate limiting")
+  Container(api, "Backend API", "Node.js (NestJS)", "Бизнес-логика: фонд, выдачи, брони, штрафы, форум, заявки")
 
-    Container(api, "Backend API", "Node.js (NestJS)", "Бизнес-логика: фонд, выдачи, брони, штрафы, форум, заявки")
+  Container(ml, "ML-сервис", "Python (FastAPI)", "Анализ внутренних и мировых трендов, рекомендации")
 
-    Container(ml, "ML-сервис", "Python (FastAPI)", "Анализ внутренних и мировых трендов, рекомендации")
+  Container(notifier, "Сервис уведомлений", "Python + Celery", "Асинхронная отправка email и push-уведомлений")
 
-    Container(notifier, "Сервис уведомлений", "Python + Celery", "Асинхронная отправка email и push-уведомлений")
+  ContainerDb(db, "База данных", "PostgreSQL", "Пользователи, фонд, выдачи, брони, штрафы, заявки, сессии")
 
-    ContainerDb(db, "База данных", "PostgreSQL", "Пользователи, фонд, выдачи, брони, штрафы, заявки, сессии")
+  ContainerDb(search, "Поисковый индекс", "Elasticsearch", "Полнотекстовый поиск по каталогу и форуму")
 
-    ContainerDb(search, "Поисковый индекс", "Elasticsearch", "Полнотекстовый поиск по каталогу и форуму")
+  ContainerDb(storage, "Хранилище электронных книг", "RustFS (S3-совместимое)", "Файлы книг: PDF, EPUB, аудио")
 
-    ContainerDb(storage, "Хранилище электронных книг", "RustFS (S3-совместимое)", "Файлы книг: PDF, EPUB, аудио")
-
-    ContainerQueue(broker, "Очередь сообщений", "RabbitMQ", "Асинхронный обмен событиями между сервисами")
+  ContainerQueue(broker, "Очередь сообщений", "RabbitMQ", "Асинхронный обмен событиями между сервисами")
 }
 
 System_Ext(trends, "Сервис мировых трендов", "Источник данных о популярных изданиях (Open Library)")

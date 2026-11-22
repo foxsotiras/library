@@ -1,9 +1,10 @@
-@startuml "mandryka-dynamic"
+@startuml mandryka-dynamic
 !include <C4/C4_Dynamic>
 LAYOUT_WITH_LEGEND()
 
 ' Runtime collaboration: the nodes are static-model elements, not activities.
 title Выдача бумажного экземпляра
+
 Person(librarian, "Библиотекарь")
 System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
   Container(admin_web, "Панель сотрудника", "Vue.js 3")
@@ -24,4 +25,5 @@ Rel(analytics_service, message_broker, "basic.consume analytics.events", "AMQPS 
 Rel(message_broker, analytics_service, "loan.issued", "AMQPS 5671", $index="10")
 Rel(analytics_service, database, "Дедупликация + агрегат; COMMIT", "SQL TLS", $index="11")
 Rel(analytics_service, message_broker, "basic.ack после COMMIT", "AMQPS 5671", $index="12")
+
 @enduml

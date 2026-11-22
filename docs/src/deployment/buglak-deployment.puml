@@ -1,5 +1,6 @@
 @startuml buglak-deployment
 !include <C4/C4_Deployment>
+LAYOUT_WITH_LEGEND()
 
 title Развертывание ядра и базы данных
 

@@ -1,4 +1,4 @@
-@startuml "zayniev-media_file_processor"
+@startuml zayniev-media_service
 ' Диаграмма кода C4 (Level 4)
 ' Детализируемый компонент L3: file_processor — Обработчик файлов
 ' Паттерн Strategy: алгоритм обработки файла по формату (FileProcessor + FileProcessingStrategy)

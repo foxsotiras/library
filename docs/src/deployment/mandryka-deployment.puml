@@ -1,4 +1,4 @@
-@startuml "mandryka-deployment"
+@startuml mandryka-deployment
 !include <C4/C4_Deployment>
 LAYOUT_WITH_LEGEND()
 

@@ -1,5 +1,5 @@
-@startuml "zayniev-container"
-!include <C4/C4_Container.puml>
+@startuml zayniev-container
+!include <C4/C4_Container>
 LAYOUT_WITH_LEGEND()
 
 title Локальная диаграмма контейнеров (L2) — «Интеллектуальная библиотека»

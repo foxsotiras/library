@@ -1,5 +1,6 @@
 @startuml glimakova-landscape
 !include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
 
 title Системный ландшафт — Портал читателя
 

@@ -1,5 +1,6 @@
 @startuml glimakova-dynamic
 !include <C4/C4_Deployment>
+LAYOUT_WITH_LEGEND()
 
 title Чтение электронного издания
 
@@ -23,4 +24,5 @@ Rel(object_storage, media_service, "Байты и длина", "HTTPS 9000")
 Rel(media_service, reader_portal, "206, Content-Range", "HTTPS 443")
 Rel(reader_portal, reader, "Отобразить фрагмент", "JS Call")
 Rel(media_service, reader_portal, "При отказе: 401 / 403 / 416", "HTTPS 443")
+
 @enduml

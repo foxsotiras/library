@@ -1,5 +1,6 @@
-@startuml "zayniev-landscape"
+@startuml zayniev-landscape
 !include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
 
 Enterprise_Boundary(municipality, "Муниципальная цифровая среда") {
   System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
@@ -16,4 +17,5 @@ Rel(library_system, payment_gateway, "Создание платежа", "REST / 
 Rel(payment_gateway, library_system, "Статус оплаты", "Webhook / HTTPS 443")
 Rel(library_system, neb_catalog, "Импорт записей", "Z39.50 / TCP 210 через VPN")
 title Системный ландшафт — Электронный фонд
+
 @enduml

@@ -1,0 +1,105 @@
+@startuml glimakova-reader_portal
+
+enum BookFormat {
+  EPUB
+  PDF
+  TXT
+}
+
+class EBook <<dataclass>> {
+  + book_id: str
+  + title: str
+  + book_format: BookFormat
+  + size_bytes: int
+}
+
+class RenderedPage <<dataclass>> {
+  + position: int
+  + total: int
+  + label: str
+  + text: str
+}
+
+class Bookmark <<dataclass>> {
+  + book_id: str
+  + position: int
+  + note: str
+}
+
+interface MediaClient {
+  + fetch_range(book_id: str, start: int, end: int): bytes
+}
+
+class InMemoryMediaClient {
+  - _files: dict[str, bytes]
+  + fetch_range(book_id: str, start: int, end: int): bytes
+}
+
+interface DocumentRenderStrategy {
+  + load(content: bytes): None
+  + total_positions(): int
+  + render(position: int): RenderedPage
+}
+
+class EpubRenderStrategy {
+  - _chapters: list[str]
+  + load(content: bytes): None
+  + total_positions(): int
+  + render(position: int): RenderedPage
+}
+
+class PdfRenderStrategy {
+  - _pages: list[str]
+  + load(content: bytes): None
+  + total_positions(): int
+  + render(position: int): RenderedPage
+}
+
+class TxtRenderStrategy {
+  - _screen_size: int
+  - _screens: list[str]
+  + load(content: bytes): None
+  + total_positions(): int
+  + render(position: int): RenderedPage
+}
+
+class StrategyRegistry {
+  - _factories: dict[BookFormat, Callable]
+  + register(fmt: BookFormat, factory: Callable): None
+  + create(fmt: BookFormat): DocumentRenderStrategy
+}
+
+class ReaderContext {
+  - _media_client: MediaClient
+  - _registry: StrategyRegistry
+  - _strategy: DocumentRenderStrategy | None
+  - _book: EBook | None
+  - _position: int
+  - _bookmarks: list[Bookmark]
+  + set_strategy(strategy: DocumentRenderStrategy): None
+  + open(book: EBook): RenderedPage
+  + current_page(): RenderedPage
+  + next_page(): RenderedPage
+  + previous_page(): RenderedPage
+  + go_to(position: int): RenderedPage
+  + progress(): float
+  + add_bookmark(note: str): Bookmark
+  + bookmarks: list[Bookmark]
+}
+
+ReaderContext o--> "1" DocumentRenderStrategy : использует
+ReaderContext --> MediaClient : получает файл
+ReaderContext --> StrategyRegistry : выбирает стратегию
+ReaderContext *--> "0..*" Bookmark : хранит
+ReaderContext ..> EBook : <<use>>
+StrategyRegistry ..> DocumentRenderStrategy : <<create>>
+StrategyRegistry ..> BookFormat
+EBook --> BookFormat
+DocumentRenderStrategy ..> RenderedPage : <<create>>
+
+EpubRenderStrategy ..|> DocumentRenderStrategy
+PdfRenderStrategy ..|> DocumentRenderStrategy
+TxtRenderStrategy ..|> DocumentRenderStrategy
+InMemoryMediaClient ..|> MediaClient
+
+@enduml

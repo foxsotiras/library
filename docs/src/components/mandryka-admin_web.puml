@@ -1,6 +1,5 @@
 @startuml mandryka-admin_web
-!include <C4/C4_Component.puml>
-
+!include <C4/C4_Component>
 LAYOUT_WITH_LEGEND()
 
 title Диаграмма компонентов (Level 3) — Панель сотрудника библиотеки [Vue.js 3 SPA]
@@ -20,19 +19,19 @@ Component_Ext(community_comp, "community_comp", "Backend API", "Заявки, ж
 Component_Ext(media_api, "media_api", "Сервис электронного фонда", "Приём файлов e-изданий")
 
 Container_Boundary(admin_web, "Панель сотрудника библиотеки") {
-    ' --- Слой представления ---
-    Component(rbac_router, "Маршрутизатор с RBAC", "Vue Router + Route Guards", "Показывает разделы по роли: librarian / acquisitor / moderator / admin.")
-    Component(circulation_ui, "Модуль обслуживания", "Vue SFC / Vuetify", "Регистрация читателей, выдача и возврат, продление, контроль просрочек и броней.")
-    Component(acquisition_ui, "Модуль комплектования", "Vue SFC / Vuetify", "Каталогизация, импорт из НЭБ, списание, рассмотрение заявок, загрузка e-версий.")
-    Component(moderation_ui, "Модуль модерации", "Vue SFC / Vuetify", "Очередь жалоб, скрытие сообщений, блокировка пользователей.")
-    Component(reports_ui, "Модуль отчётов и аналитики", "Vue SFC + ECharts", "Дашборд востребованности, отчёты о выдачах, штрафах и активности.")
-    Component(admin_ui, "Модуль администрирования", "Vue SFC / Vuetify", "Учётные записи сотрудников, роли, настройки системы.")
-    ' --- Слой интеграции с оборудованием ---
-    Component(scanner_adapter, "Адаптер сканера", "TypeScript (keyboard-wedge listener)", "Распознаёт ввод штрихкода экземпляра или читательского билета.")
-    ' --- Слой состояния и доступа к сети ---
-    Component(state_store, "Хранилище состояния", "Pinia", "Сессия сотрудника, его роль, текущая операция выдачи.")
-    Component(api_client, "API-клиент", "Axios + JWT Interceptor", "Запросы к бэкенду, обновление токена, обработка ошибок.")
-    Component(upload_client, "Клиент загрузки файлов", "Axios (multipart, progress)", "Передача EPUB/PDF и обложек в сервис электронного фонда.")
+  ' --- Слой представления ---
+  Component(rbac_router, "Маршрутизатор с RBAC", "Vue Router + Route Guards", "Показывает разделы по роли: librarian / acquisitor / moderator / admin.")
+  Component(circulation_ui, "Модуль обслуживания", "Vue SFC / Vuetify", "Регистрация читателей, выдача и возврат, продление, контроль просрочек и броней.")
+  Component(acquisition_ui, "Модуль комплектования", "Vue SFC / Vuetify", "Каталогизация, импорт из НЭБ, списание, рассмотрение заявок, загрузка e-версий.")
+  Component(moderation_ui, "Модуль модерации", "Vue SFC / Vuetify", "Очередь жалоб, скрытие сообщений, блокировка пользователей.")
+  Component(reports_ui, "Модуль отчётов и аналитики", "Vue SFC + ECharts", "Дашборд востребованности, отчёты о выдачах, штрафах и активности.")
+  Component(admin_ui, "Модуль администрирования", "Vue SFC / Vuetify", "Учётные записи сотрудников, роли, настройки системы.")
+  ' --- Слой интеграции с оборудованием ---
+  Component(scanner_adapter, "Адаптер сканера", "TypeScript (keyboard-wedge listener)", "Распознаёт ввод штрихкода экземпляра или читательского билета.")
+  ' --- Слой состояния и доступа к сети ---
+  Component(state_store, "Хранилище состояния", "Pinia", "Сессия сотрудника, его роль, текущая операция выдачи.")
+  Component(api_client, "API-клиент", "Axios + JWT Interceptor", "Запросы к бэкенду, обновление токена, обработка ошибок.")
+  Component(upload_client, "Клиент загрузки файлов", "Axios (multipart, progress)", "Передача EPUB/PDF и обложек в сервис электронного фонда.")
 }
 
 Rel(librarian, rbac_router, "Открывает раздел обслуживания", "HTTPS")

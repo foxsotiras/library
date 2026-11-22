@@ -1,6 +1,6 @@
-@startuml mandryka-reports_ui
+@startuml mandryka-admin_web
 
-package "reports_ui" {
+package "admin_web" {
 
     class DashboardContext {
         - _strategy: IReportStrategy

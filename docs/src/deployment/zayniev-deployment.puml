@@ -1,5 +1,6 @@
-@startuml "zayniev-deployment"
+@startuml zayniev-deployment
 !include <C4/C4_Deployment>
+LAYOUT_WITH_LEGEND()
 
 title Развертывание электронного фонда
 

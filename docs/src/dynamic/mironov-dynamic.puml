@@ -1,7 +1,10 @@
-@startuml
+@startuml mironov-dynamic
 !include <C4/C4_Dynamic>
+LAYOUT_WITH_LEGEND()
+
 ' Runtime collaboration: the nodes are static-model elements, not activities.
 title Событие и отчет о востребованности
+
 System_Ext(trends_api, "Книжные API")
 System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
   Container(admin_web, "Панель сотрудника", "Vue.js 3")
@@ -23,4 +26,5 @@ Rel(api_gateway, analytics_service, "GetDemandRating", "gRPC mTLS 50051", $index
 Rel(analytics_service, database, "SELECT analytics", "SQL TLS 5432", $index="11")
 Rel(analytics_service, api_gateway, "score, strategy, asOf", "gRPC mTLS", $index="12")
 Rel(api_gateway, admin_web, "200, метрики и свежесть", "HTTPS 443", $index="13")
+
 @enduml

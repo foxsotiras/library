@@ -1,17 +1,16 @@
 @startuml landscape
 !include <C4/C4_Context>
-
 LAYOUT_WITH_LEGEND()
 
 title Системный ландшафт интеллектуальной библиотеки
 footer Проектная интеграция. Локальные контейнеры раскрываются на L2.
 
 Enterprise_Boundary(municipality, "Муниципальная цифровая среда") {
-    System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
-    System_Ext(municipal_iam, "Муниципальная IAM", "Проектная интеграция SSO")
-    System_Boundary(library_it, "Граница ответственности команды") {
-        System(library_system, "Интеллектуальная библиотека", "Каталог, обслуживание, аналитика и электронный фонд")
-    }
+  System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
+  System_Ext(municipal_iam, "Муниципальная IAM", "Проектная интеграция SSO")
+  System_Boundary(library_it, "Граница ответственности команды") {
+    System(library_system, "Интеллектуальная библиотека", "Каталог, обслуживание, аналитика и электронный фонд")
+  }
 }
 
 System_Ext(payment_gateway, "Платежный шлюз", "Внешняя финансовая система")
@@ -26,4 +25,5 @@ Rel(payment_gateway, library_system, "Статус оплаты", "Webhook / HTT
 Rel(library_system, neb_catalog, "Импорт записей", "Z39.50 / TCP 210 через VPN")
 Rel(library_system, trends_api, "Снимок трендов", "REST / HTTPS 443")
 Rel(library_system, mail_service, "Уведомления", "SMTP / STARTTLS 587")
+
 @enduml

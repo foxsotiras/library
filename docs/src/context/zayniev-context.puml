@@ -1,5 +1,5 @@
-@startuml "zayniev-context"
-!include <C4/C4_Context.puml>
+@startuml zayniev-context
+!include <C4/C4_Context>
 LAYOUT_WITH_LEGEND()
 
 title Локальная диаграмма системного контекста (L1) — «Интеллектуальная библиотека»

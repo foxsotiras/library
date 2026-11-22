@@ -1,4 +1,4 @@
-@startuml mironov-code
+@startuml mironov-analytics
 title Диаграмма классов UML (Level 4) — demand_scoring (Расчёт индекса востребованности)
 
 class DemandScoringContext {
@@ -56,4 +56,5 @@ HybridWeightedStrategy --> InternalPopularityStrategy : использует д�
 HybridWeightedStrategy --> GlobalTrendsStrategy : использует для расчёта
 DemandScoringContext ..> DemandScore : формирует результат
 DemandScoringContext ..> DemandFeatures : принимает на вход
+
 @enduml

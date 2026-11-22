@@ -1,6 +1,5 @@
 @startuml mandryka-container
 !include <C4/C4_Container>
-
 LAYOUT_WITH_LEGEND()
 
 title Диаграмма контейнеров C4 (Level 2) — Система «Интеллектуальная библиотека»

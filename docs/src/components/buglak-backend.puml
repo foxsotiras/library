@@ -2,8 +2,8 @@
 ' Диаграмма компонентов C4 (Level 3) — Буглак: Backend API & Core Service
 ' Открытые стыковочные шлюзы (глобальные ID): auth_comp, catalog_comp, loan_comp, payment_comp, community_comp
 ' Каждый шлюз — NestJS-модуль со своим контроллером, поэтому внешние вызовы адресуются прямо ему.
-' Стили и легенда — только в мастер-файле.
 !include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
 
 title Диаграмма компонентов (Level 3) — Backend API & Core Service [Node.js / NestJS]
 

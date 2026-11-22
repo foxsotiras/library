@@ -1,13 +1,13 @@
-@startuml "mandryka-landscape"
+@startuml mandryka-landscape
 !include <C4/C4_Context>
 LAYOUT_WITH_LEGEND()
 
 Enterprise_Boundary(municipality, "Муниципальная цифровая среда") {
-    System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
-    System_Ext(municipal_iam, "Муниципальная IAM", "Проектная интеграция SSO")
-    System_Boundary(library_it, "Граница ответственности команды") {
-        System(library_system, "Интеллектуальная библиотека", "Каталог, обслуживание, аналитика и электронный фонд")
-    }
+  System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
+  System_Ext(municipal_iam, "Муниципальная IAM", "Проектная интеграция SSO")
+  System_Boundary(library_it, "Граница ответственности команды") {
+    System(library_system, "Интеллектуальная библиотека", "Каталог, обслуживание, аналитика и электронный фонд")
+  }
 }
 
 System_Ext(payment_gateway, "Платежный шлюз", "Внешняя финансовая система")
@@ -21,4 +21,5 @@ Rel(library_system, neb_catalog, "Импорт записей", "Z39.50 / TCP 21
 
 title Системный ландшафт — Панель сотрудника
 footer Зона участника Мандрыка ММ: admin_web. IAM и портал — расширение ЛР4.
+
 @enduml

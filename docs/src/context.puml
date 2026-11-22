@@ -1,6 +1,5 @@
 @startuml context
 !include <C4/C4_Context>
-
 LAYOUT_WITH_LEGEND()
 
 title Диаграмма системного контекста C4 (Level 1) — ИС «Интеллектуальная библиотека»

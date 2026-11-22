@@ -1,7 +1,9 @@
-@startuml "zayniev-dynamic"
+@startuml zayniev-dynamic
 !include <C4/C4_Dynamic>
+LAYOUT_WITH_LEGEND()
 
 title Загрузка и привязка электронного издания
+
 Person(acquisitor, "Комплектовщик")
 System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
   Container(admin_web, "Панель сотрудника", "Vue.js 3")
@@ -22,4 +24,5 @@ Rel(media_service, admin_web, "При отказе: Ошибка загрузк�
 Rel(admin_web, api_gateway, "PATCH /catalog/{id}/media", "HTTPS 443", $index="10")
 Rel(api_gateway, database, "Привязка mediaId; COMMIT", "SQL TLS 5432", $index="11")
 Rel(api_gateway, admin_web, "200; издание опубликовано", "HTTPS 443", $index="12")
+
 @enduml

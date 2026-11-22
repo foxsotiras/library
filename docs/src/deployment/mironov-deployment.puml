@@ -1,5 +1,6 @@
 @startuml mironov-deployment
 !include <C4/C4_Deployment>
+LAYOUT_WITH_LEGEND()
 
 title Развертывание аналитики и брокера
 

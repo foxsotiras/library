@@ -1,7 +1,10 @@
 @startuml buglak-dynamic
 !include <C4/C4_Dynamic>
+LAYOUT_WITH_LEGEND()
+
 ' Runtime collaboration: the nodes are static-model elements, not activities.
 title Возврат и оплата штрафа
+
 System_Ext(payment_gateway, "Платежный шлюз")
 System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
   Container(admin_web, "Панель сотрудника", "Vue.js 3")
@@ -20,4 +23,5 @@ Rel(api_gateway, payment_gateway, "Создать платеж, Idempotency-Key\
 Rel(payment_gateway, api_gateway, "paymentId, confirmationUrl", "HTTPS 443", $index="8")
 Rel(payment_gateway, api_gateway, "Webhook payment.succeeded", "HTTPS 443", $index="9")
 Rel(api_gateway, database, "UNIQUE paymentId; закрыть долг", "SQL TLS 5432", $index="11")
+
 @enduml

@@ -3,6 +3,7 @@
 
 !$focus = 3
 !include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
 ' L0 systems only. Municipal neighbours are outside the team's ownership.
 Enterprise_Boundary(municipality, "Муниципальная цифровая среда") {
   System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
