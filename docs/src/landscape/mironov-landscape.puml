@@ -1,4 +1,4 @@
-@startuml
+@startuml mironov-landscape
 ' Миронов Д.С.; scope: analytics_service, message_broker; target architecture, not an operational deployment.
 !$focus = 4
 

@@ -1,4 +1,4 @@
-@startuml
+@startuml mironov-code
 title Диаграмма классов UML (Level 4) — demand_scoring (Расчёт индекса востребованности)
 
 class DemandScoringContext {
