@@ -1,0 +1,23 @@
+@startuml "mandryka-deployment"
+!include <C4/C4_Deployment>
+LAYOUT_WITH_LEGEND()
+
+title Развертывание — Панель сотрудника
+
+Deployment_Node(client_node, "Рабочее устройство") {
+  Container(admin_web, "admin_web", "Vue.js 3 SPA")
+}
+Deployment_Node(dmz, "Демилитаризованная зона") {
+  Node(ingress_a, "Nginx A", "TLS 1.3")
+  Node(ingress_b, "Nginx B", "TLS 1.3")
+}
+Container_Ext(api_gateway, "api_gateway", "NestJS")
+Container_Ext(media_service, "media_service", "Fastify")
+Rel(admin_web, ingress_a, "Получает dist и вызывает API", "HTTPS 443")
+Rel(admin_web, ingress_b, "Обращается через VIP при отказе A", "HTTPS 443")
+Rel(ingress_a, api_gateway, "Передает REST", "HTTPS 3000 / mTLS")
+Rel(ingress_b, api_gateway, "Передает REST", "HTTPS 3000 / mTLS")
+Rel(ingress_a, media_service, "Передает multipart", "HTTPS 3100 / mTLS")
+Rel(ingress_b, media_service, "Передает multipart", "HTTPS 3100 / mTLS")
+
+@enduml

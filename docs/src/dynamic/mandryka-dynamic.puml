@@ -1,0 +1,27 @@
+@startuml "mandryka-dynamic"
+!include <C4/C4_Dynamic>
+LAYOUT_WITH_LEGEND()
+
+' Runtime collaboration: the nodes are static-model elements, not activities.
+title Выдача бумажного экземпляра
+Person(librarian, "Библиотекарь")
+System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
+  Container(admin_web, "Панель сотрудника", "Vue.js 3")
+  Container(api_gateway, "Backend API", "NestJS")
+  ContainerDb(database, "База данных", "PostgreSQL")
+  ContainerQueue(message_broker, "Брокер событий", "RabbitMQ")
+  Container(analytics_service, "Аналитика", "Python / gRPC")
+}
+Rel(librarian, admin_web, "Сканировать билет и экземпляр", "USB HID / UI", $index="1")
+Rel(admin_web, api_gateway, "POST /loans {readerId,\ncopyBarcode}", "HTTPS 443", $index="2")
+Rel(api_gateway, database, "Проверки и блокировка экземпляра", "SQL 5432 TLS", $index="3")
+Rel(api_gateway, database, "BEGIN; loan + copy + outbox;\nCOMMIT", "SQL TLS", $index="4")
+Rel(api_gateway, admin_web, "201 LoanResponse", "HTTPS 443", $index="5")
+Rel(api_gateway, admin_web, "При отказе: 404 / 409", "HTTPS 443", $index="6")
+Rel(api_gateway, message_broker, "loan.issued + eventId", "AMQPS 5671", $index="7")
+Rel(message_broker, api_gateway, "Publisher confirm", "AMQPS 5671", $index="8")
+Rel(analytics_service, message_broker, "basic.consume analytics.events", "AMQPS 5671", $index="9")
+Rel(message_broker, analytics_service, "loan.issued", "AMQPS 5671", $index="10")
+Rel(analytics_service, database, "Дедупликация + агрегат; COMMIT", "SQL TLS", $index="11")
+Rel(analytics_service, message_broker, "basic.ack после COMMIT", "AMQPS 5671", $index="12")
+@enduml
