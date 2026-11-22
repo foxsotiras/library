@@ -1,0 +1,59 @@
+@startuml mironov-code
+title Диаграмма классов UML (Level 4) — demand_scoring (Расчёт индекса востребованности)
+
+class DemandScoringContext {
+  - _strategy: IDemandStrategy
+  + __init__(strategy: IDemandStrategy) : None
+  + set_strategy(strategy: IDemandStrategy) : None
+  + rate(features: DemandFeatures) : DemandScore
+  + rate_batch(items: List[DemandFeatures]) : List[DemandScore]
+}
+
+interface IDemandStrategy {
+  + calculate(features: DemandFeatures) : float
+  + get_strategy_name() : str
+}
+
+class InternalPopularityStrategy {
+  + calculate(features: DemandFeatures) : float
+  + get_strategy_name() : str
+}
+
+class GlobalTrendsStrategy {
+  + calculate(features: DemandFeatures) : float
+  + get_strategy_name() : str
+}
+
+class HybridWeightedStrategy {
+  - _internal: InternalPopularityStrategy
+  - _trends: GlobalTrendsStrategy
+  - _weight: float
+  + __init__(weight: float = 0.7) : None
+  + calculate(features: DemandFeatures) : float
+  + get_strategy_name() : str
+}
+
+class DemandFeatures {
+  + book_id: int
+  + title: str
+  + issue_count: int
+  + booking_count: int
+  + trend_score: float
+}
+
+class DemandScore {
+  + book_id: int
+  + title: str
+  + score: float
+  + strategy: str
+}
+
+DemandScoringContext o--> IDemandStrategy : делегирует расчёт индекса
+InternalPopularityStrategy ..|> IDemandStrategy : реализует
+GlobalTrendsStrategy ..|> IDemandStrategy : реализует
+HybridWeightedStrategy ..|> IDemandStrategy : реализует
+HybridWeightedStrategy --> InternalPopularityStrategy : использует для расчёта
+HybridWeightedStrategy --> GlobalTrendsStrategy : использует для расчёта
+DemandScoringContext ..> DemandScore : формирует результат
+DemandScoringContext ..> DemandFeatures : принимает на вход
+@enduml

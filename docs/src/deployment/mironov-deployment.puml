@@ -1,0 +1,26 @@
+@startuml mironov-deployment
+!include <C4/C4_Deployment>
+
+title Развертывание аналитики и брокера
+
+Deployment_Node(analytics_a, "Узел аналитики A") {
+  Container(analytics_service_a, "analytics_service A", "Python 3.12")
+}
+Deployment_Node(analytics_b, "Узел аналитики B") {
+  Container(analytics_service_b, "analytics_service B", "Python 3.12")
+}
+Deployment_Node(broker_cluster, "Три узла брокера") {
+  ContainerQueue(message_broker, "message_broker", "3-node quorum queue")
+}
+ContainerDb_Ext(database, "database", "PostgreSQL 16")
+Container_Ext(api_gateway, "api_gateway", "NestJS")
+System_Ext(trends_api, "Книжные API", "Внешний снимок трендов")
+Rel(analytics_service_a, message_broker, "Открывает consumer и подтверждает", "AMQPS 5671")
+Rel(analytics_service_b, message_broker, "Открывает consumer и подтверждает", "AMQPS 5671")
+Rel(analytics_service_a, database, "Пишет проекции", "SQL / TLS 5432")
+Rel(analytics_service_b, database, "Пишет проекции", "SQL / TLS 5432")
+Rel(api_gateway, analytics_service_a, "Запрашивает отчет", "gRPC / mTLS 50051")
+Rel(api_gateway, analytics_service_b, "Запрашивает отчет", "gRPC / mTLS 50051")
+Rel(analytics_service_a, trends_api, "Суточный снимок под блокировкой задания", "HTTPS 443")
+
+@enduml
