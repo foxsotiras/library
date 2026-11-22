@@ -1,5 +1,4 @@
 @startuml mandryka-reports_ui
-skinparam classAttributeIconSize 0
 
 package "reports_ui" {
 
