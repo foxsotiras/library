@@ -1,0 +1,52 @@
+@startuml glimakova-reader_portal
+!include <C4/C4_Component>
+
+title Диаграмма компонентов (Level 3) — Портал читателя [Vue.js 3 SPA]
+
+Person(reader, "Читатель", "Работает с порталом в браузере")
+
+Container_Boundary(portal, "Портал читателя") {
+    Component(router, "Маршрутизатор и Auth Guard", "Vue Router", "Маршруты SPA, защита страниц ЛК, редирект на вход при отсутствии JWT.")
+    Component(community, "Модуль сообщества", "Vue SFC", "Форумы, жалобы на сообщения, заявки на комплектование, голосование.")
+    Component(catalog, "Модуль каталога", "Vue SFC", "Поиск и фильтрация единого каталога, карточка издания, бронирование экземпляра.")
+    Component(cabinet, "Личный кабинет", "Vue SFC", "Выдачи и брони, история чтения, штрафы и их оплата, рекомендации.")
+    Component(ereader, "Онлайн-читалка", "Vue SFC + epub.js / pdf.js", "Отображение электронных изданий, закладки, прогресс чтения.")
+    Component(store, "Хранилище состояния", "Pinia", "Сессия пользователя, кэш каталога, состояние ЛК.")
+    Component(media, "Медиа-клиент", "Fetch API (Range)", "Загрузка обложек и порционное получение файла е-книги.")
+    Component(api, "API-клиент", "Axios + JWT Interceptor", "Запросы к бэкенду, подстановка и обновление токена, обработка ошибок.")
+}
+
+System_Ext(payment_gw, "Платёжный шлюз", "Страница оплаты ЮKassa / СБП")
+Component_Ext(media_api, "media_api", "Сервис электронного фонда", "Обложки и файлы е-книг")
+
+Component_Ext(auth_comp, "auth_comp", "Backend API", "Вход, обновление JWT")
+Component_Ext(catalog_comp, "catalog_comp", "Backend API", "Поиск по каталогу, рекомендации")
+Component_Ext(loan_comp, "loan_comp", "Backend API", "Брони, выдачи, продление")
+Component_Ext(payment_comp, "payment_comp", "Backend API", "Штрафы и создание платежа")
+Component_Ext(community_comp, "community_comp", "Backend API", "Форумы, жалобы, заявки, голоса")
+
+Rel(reader, router, "Открывает страницы портала", "HTTPS")
+
+Rel(router, community, "Монтирует форумы и заявки", "Vue Router")
+Rel(router, catalog, "Монтирует каталог", "Vue Router")
+Rel(router, cabinet, "Монтирует ЛК (после проверки токена)", "Vue Router")
+Rel(router, ereader, "Монтирует читалку", "Vue Router")
+Rel(router, store, "Проверяет наличие сессии", "JS Call")
+
+Rel(community, store, "Сообщения, жалобы, заявки, голоса", "JS Call (Pinia action)")
+Rel(catalog, store, "Поиск и бронирование", "JS Call (Pinia action)")
+Rel(catalog, media, "Загружает обложки", "JS Call")
+Rel(cabinet, store, "Данные ЛК и оплата", "JS Call (Pinia action)")
+Rel(cabinet, payment_gw, "Перенаправляет на страницу оплаты", "HTTPS (redirect)")
+Rel(ereader, media, "Запрашивает фрагменты файла книги", "JS Call")
+
+Rel(store, api, "Вызывает методы API", "JS Call (async)")
+Rel(media, media_api, "GET /media/{id} с Bearer-токеном", "HTTPS (Range)")
+
+Rel(api, auth_comp, "POST /auth/login, /auth/refresh", "HTTPS / JSON")
+Rel(api, catalog_comp, "GET /catalog, /recommendations", "HTTPS / JSON")
+Rel(api, loan_comp, "POST /bookings, GET /loans", "HTTPS / JSON")
+Rel(api, payment_comp, "GET /fines, POST /fines/{id}/pay", "HTTPS / JSON")
+Rel(api, community_comp, "/forum, /complaints, /requests, /votes", "HTTPS / JSON")
+
+@enduml

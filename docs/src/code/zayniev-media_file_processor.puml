@@ -1,0 +1,170 @@
+@startuml "zayniev-media_file_processor"
+' Диаграмма кода C4 (Level 4)
+' Детализируемый компонент L3: file_processor — Обработчик файлов
+' Паттерн Strategy: алгоритм обработки файла по формату (FileProcessor + FileProcessingStrategy)
+title Диаграмма классов (Level 4) — компонент file_processor контейнера «Сервис электронного фонда» [TypeScript / Fastify]
+
+hide empty members
+set namespaceSeparator none
+left to right direction
+
+package "file_processor — точка входа (вызывается media_api)" {
+  class FileProcessingService <<Facade>> {
+    - registry: ProcessingStrategyRegistry
+    - storage: ObjectStoragePort
+    - ids: IdGenerator
+    + handleUpload(file: IncomingFile): Promise<StoredMedia>
+  }
+  class ProcessingStrategyRegistry <<Registry>> {
+    - strategies: FileProcessingStrategy[]
+    + register(strategy: FileProcessingStrategy): this
+    + resolve(file: IncomingFile): FileProcessingStrategy
+  }
+}
+
+package "file_processor — обработка (паттерн Strategy)" {
+  class FileProcessor <<Context>> {
+    - strategy: FileProcessingStrategy
+    - storage: ObjectStoragePort
+    - ids: IdGenerator
+    + constructor(strategy, storage, ids)
+    + setStrategy(strategy: FileProcessingStrategy): void
+    + process(file: IncomingFile): Promise<StoredMedia>
+  }
+  interface FileProcessingStrategy <<interface>> {
+    + format: MediaFormat
+    + bucket: BucketName
+    + contentType: string
+    + extension: string
+    + maxSizeBytes: number
+    + supports(content: Buffer): boolean
+    + process(file: IncomingFile): Promise<ProcessingResult>
+  }
+  class EpubProcessingStrategy {
+    + bucket = "ebooks"
+    + maxSizeBytes = 100 МБ
+    - reader: EpubMetadataReader
+    + supports(content: Buffer): boolean
+    + process(file: IncomingFile): Promise<ProcessingResult>
+  }
+  class PdfProcessingStrategy {
+    + bucket = "ebooks"
+    + maxSizeBytes = 200 МБ
+    + supports(content: Buffer): boolean
+    + process(file: IncomingFile): Promise<ProcessingResult>
+  }
+  class CoverImageProcessingStrategy {
+    + bucket = "covers"
+    + contentType: CoverImageKind
+    - resizer: ImageResizer
+    - previewWidth: number = 300
+    - minWidth: number = 200
+    + supports(content: Buffer): boolean
+    + process(file: IncomingFile): Promise<ProcessingResult>
+  }
+}
+
+package "file_processor — модель данных" {
+  interface IncomingFile <<Value>> {
+    + editionId: EditionId
+    + originalName: string
+    + declaredMime: string
+    + content: Buffer
+  }
+  interface ProcessingResult <<Value>> {
+    + metadata: FileMetadata
+    + derivatives: Derivative[]
+  }
+  interface FileMetadata <<Value>> {
+    + title?: string
+    + author?: string
+    + language?: string
+    + pageCount?: number
+    + width?: number
+    + height?: number
+  }
+  interface Derivative <<Value>> {
+    + suffix: string
+    + contentType: string
+    + body: Buffer
+  }
+  interface StoredMedia <<Value>> {
+    + mediaId: string
+    + editionId: EditionId
+    + format: MediaFormat
+    + original: StoredObjectRef
+    + derivatives: StoredObjectRef[]
+    + sizeBytes: number
+    + sha256: string
+    + metadata: FileMetadata
+  }
+  enum MediaFormat {
+    EPUB
+    PDF
+    COVER_IMAGE
+  }
+  class MediaValidationError <<Error>> {
+    + code: MediaErrorCode
+  }
+}
+
+package "file_processor — порты и адаптеры библиотек" {
+  interface ObjectStoragePort <<interface>> {
+    + putObject(request: PutObjectRequest): Promise<void>
+    + deleteObject(bucket: BucketName, key: string): Promise<void>
+  }
+  interface EpubMetadataReader <<interface>> {
+    + read(content: Buffer): Promise<FileMetadata>
+  }
+  interface ImageResizer <<interface>> {
+    + probe(content: Buffer): Promise<ImageInfo>
+    + resize(content: Buffer, maxWidth: number): Promise<Buffer>
+  }
+  interface IdGenerator <<interface>> {
+    + next(): string
+  }
+  class OpfEpubMetadataReader <<Adapter: jszip>> {
+    + read(content: Buffer): Promise<FileMetadata>
+  }
+  class SharpImageResizer <<Adapter: sharp>> {
+    + probe(content: Buffer): Promise<ImageInfo>
+    + resize(content: Buffer, maxWidth: number): Promise<Buffer>
+  }
+}
+
+class S3StorageAdapter <<storage_adapter>>
+
+' === Точка входа ===
+FileProcessingService o-- "1" ProcessingStrategyRegistry : registry
+FileProcessingService ..> FileProcessor : создаёт на каждый запрос
+FileProcessingService --> "1" ObjectStoragePort : storage
+FileProcessingService --> "1" IdGenerator : ids
+ProcessingStrategyRegistry o-- "1..*" FileProcessingStrategy : strategies
+ProcessingStrategyRegistry ..> MediaValidationError : UNSUPPORTED_FORMAT / MIME_MISMATCH
+
+' === Паттерн Strategy ===
+FileProcessor *-- "1" FileProcessingStrategy : strategy
+FileProcessor --> "1" ObjectStoragePort : storage
+FileProcessor --> "1" IdGenerator : ids
+FileProcessor ..> StoredMedia : формирует
+EpubProcessingStrategy ..|> FileProcessingStrategy
+PdfProcessingStrategy ..|> FileProcessingStrategy
+CoverImageProcessingStrategy ..|> FileProcessingStrategy
+EpubProcessingStrategy --> "1" EpubMetadataReader : reader
+CoverImageProcessingStrategy --> "1" ImageResizer : resizer
+FileProcessingStrategy ..> IncomingFile : принимает
+FileProcessingStrategy ..> ProcessingResult : возвращает
+FileProcessingStrategy --> MediaFormat : format
+FileProcessingStrategy ..> MediaValidationError : FILE_TOO_LARGE / CORRUPTED_FILE
+
+' === Модель данных ===
+ProcessingResult *-- "1" FileMetadata
+ProcessingResult *-- "0..*" Derivative
+StoredMedia *-- "1" FileMetadata
+
+' === Инверсия зависимостей: реализации портов ===
+OpfEpubMetadataReader ..|> EpubMetadataReader
+SharpImageResizer ..|> ImageResizer
+S3StorageAdapter ..|> ObjectStoragePort
+
+@enduml
