@@ -1,0 +1,23 @@
+@startuml buglak-dynamic
+!include <C4/C4_Dynamic>
+' Runtime collaboration: the nodes are static-model elements, not activities.
+title Возврат и оплата штрафа
+System_Ext(payment_gateway, "Платежный шлюз")
+System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
+  Container(admin_web, "Панель сотрудника", "Vue.js 3")
+  Container(reader_portal, "Портал читателя", "Vue.js 3")
+  Container(api_gateway, "Backend API", "NestJS")
+  ContainerDb(database, "База данных", "PostgreSQL")
+  ContainerQueue(message_broker, "Брокер событий", "RabbitMQ")
+}
+Rel(admin_web, api_gateway, "POST /loans/{id}/return", "HTTPS 443", $index="1")
+Rel(api_gateway, api_gateway, "LoanService.return;\nFineCalculator.assess", "TS Call", $index="2")
+Rel(api_gateway, database, "Выдача + штраф + outbox; COMMIT", "SQL TLS 5432", $index="3")
+Rel(api_gateway, admin_web, "200 ReturnLoanResponse", "HTTPS 443", $index="4")
+Rel(api_gateway, message_broker, "loan.returned", "AMQPS 5671", $index="5")
+Rel(reader_portal, api_gateway, "POST /fines/{id}/pay", "HTTPS 443", $index="6")
+Rel(api_gateway, payment_gateway, "Создать платеж, Idempotency-Key\n10: Проверить статус платежа\n12: 200 после COMMIT\n13: При повторе: 200 без\nповторного зачисления", "HTTPS 443", $index="7")
+Rel(payment_gateway, api_gateway, "paymentId, confirmationUrl", "HTTPS 443", $index="8")
+Rel(payment_gateway, api_gateway, "Webhook payment.succeeded", "HTTPS 443", $index="9")
+Rel(api_gateway, database, "UNIQUE paymentId; закрыть долг", "SQL TLS 5432", $index="11")
+@enduml

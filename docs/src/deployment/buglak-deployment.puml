@@ -1,0 +1,32 @@
+@startuml buglak-deployment
+!include <C4/C4_Deployment>
+
+title Развертывание ядра и базы данных
+
+Node(ingress, "Два Nginx и VIP", "DMZ")
+Deployment_Node(app_a, "Узел приложений A") {
+  Container(api_gateway_a, "api_gateway A", "Node.js 20 / NestJS")
+}
+Deployment_Node(app_b, "Узел приложений B") {
+  Container(api_gateway_b, "api_gateway B", "Node.js 20 / NestJS")
+}
+Deployment_Node(data_a, "Узел данных A") {
+  ContainerDb(database, "database Primary", "PostgreSQL 16")
+}
+Deployment_Node(data_b, "Узел данных B") {
+  ContainerDb(database_replica, "database Standby", "PostgreSQL 16")
+}
+ContainerQueue_Ext(message_broker, "message_broker", "RabbitMQ")
+Container_Ext(analytics_service, "analytics_service", "Python / gRPC")
+Container_Ext(media_service, "media_service", "Fastify")
+Rel(ingress, api_gateway_a, "Распределяет запросы", "HTTPS 3000 / mTLS")
+Rel(ingress, api_gateway_b, "Распределяет запросы", "HTTPS 3000 / mTLS")
+Rel(api_gateway_a, database, "Читает и пишет", "SQL / TLS 5432")
+Rel(api_gateway_b, database, "Читает и пишет", "SQL / TLS 5432")
+Rel(database, database_replica, "Передает WAL", "Streaming replication / TLS 5432")
+Rel(api_gateway_a, message_broker, "Публикует outbox", "AMQPS 5671")
+Rel(api_gateway_b, message_broker, "Публикует outbox", "AMQPS 5671")
+Rel(api_gateway_a, analytics_service, "Запрашивает индекс", "gRPC / mTLS 50051")
+Rel(media_service, api_gateway_a, "Проверяет право чтения", "HTTPS 3000 / mTLS через внутренний VIP")
+
+@enduml
