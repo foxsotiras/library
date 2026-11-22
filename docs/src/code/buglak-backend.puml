@@ -1,0 +1,206 @@
+@startuml buglak-backend
+' Диаграмма кода C4 (Level 4) — Буглак: Backend API & Core Service
+' Детализируемый компонент L3: loan_comp — Модуль выдачи и бронирования (стыковочный шлюз)
+' Паттерн Strategy: алгоритм начисления штрафа за просрочку (FineCalculator + FineStrategy)
+' Стили и легенда — только в мастер-файле.
+title Диаграмма классов (Level 4) — компонент loan_comp контейнера «Backend API & Core Service» [TypeScript / NestJS]
+
+hide empty members
+set namespaceSeparator none
+left to right direction
+
+package "loan_comp — слой API (стыковочный шлюз REST /loans)" {
+  class LoanController <<NestJS Controller>> {
+    - loans: LoanService
+    + issue(dto: IssueLoanDto, req: AuthenticatedRequest): Promise<LoanResponse>
+    + return(id: string, req: AuthenticatedRequest): Promise<ReturnLoanResponse>
+    + renew(id: string, req: AuthenticatedRequest): Promise<LoanResponse>
+    - handle<T>(action: () => Promise<T>): Promise<T>
+  }
+  interface IssueLoanDto <<DTO>> {
+    + readerId: string
+    + copyBarcode: string
+  }
+}
+
+package "loan_comp — слой прикладной логики" {
+  class LoanService <<Application Service>> {
+    - deps: LoanServiceDeps
+    + issue(cmd: IssueLoanCommand): Promise<LoanSnapshot>
+    + return(cmd: ReturnLoanCommand): Promise<ReturnLoanResult>
+    + renew(cmd: RenewLoanCommand): Promise<LoanSnapshot>
+    - requireLoan(id: LoanId): Promise<Loan>
+  }
+  interface LoanPolicy <<Value>> {
+    + maxActiveLoans: number = 5
+    + termDays: number = 14
+    + renewDays: number = 14
+    + maxRenewals: number = 2
+  }
+}
+
+package "loan_comp — расчёт штрафа (паттерн Strategy)" {
+  class FineCalculator <<Context>> {
+    - strategy: FineStrategy
+    + constructor(strategy: FineStrategy)
+    + setStrategy(strategy: FineStrategy): void
+    + assess(loan: Loan, category: ReaderCategory, at: Date): FineAssessment
+  }
+  interface FineStrategy <<interface>> {
+    + code: FinePolicyCode
+    + calculate(context: OverdueContext): Money
+  }
+  class DailyRateFineStrategy {
+    - ratePerDay: Money
+    - cap: Money
+    + calculate(context: OverdueContext): Money
+  }
+  class ProgressiveFineStrategy {
+    - steps: ProgressiveStep[]
+    - cap: Money
+    + calculate(context: OverdueContext): Money
+    - rateForDay(day: number): Money
+  }
+  class PreferentialFineStrategy {
+    - base: FineStrategy
+    - graceDays: number
+    - discountFactor: number
+    + calculate(context: OverdueContext): Money
+  }
+  class FinePolicyResolver <<Registry>> {
+    - byCategory: Map<ReaderCategory, FineStrategy>
+    - fallback: FineStrategy
+    + assign(category: ReaderCategory, strategy: FineStrategy): void
+    + resolve(category: ReaderCategory): FineStrategy
+  }
+  enum FinePolicyCode {
+    DAILY_RATE
+    PROGRESSIVE
+    PREFERENTIAL
+  }
+  interface OverdueContext <<Value>> {
+    + overdueDays: number
+    + readerCategory: ReaderCategory
+  }
+}
+
+package "loan_comp — доменная модель" {
+  class Loan <<Entity>> {
+    + id: LoanId
+    + readerId: ReaderId
+    + copyId: CopyId
+    + editionId: EditionId
+    + issuedAt: Date
+    - dueAt: Date
+    - returnedAt: Date | null
+    - renewCount: number
+    - status: LoanStatus
+    + {static} open(params): Loan
+    + overdueDays(at: Date): number
+    + renew(extraDays: number, maxRenewals: number, at: Date): void
+    + markReturned(at: Date): void
+    + toSnapshot(): LoanSnapshot
+  }
+  class Money <<Value Object>> {
+    + kopecks: number
+    + {static} ofRubles(rubles: number): Money
+    + add(other: Money): Money
+    + multiply(factor: number): Money
+    + min(other: Money): Money
+    + isZero(): boolean
+  }
+  enum LoanStatus {
+    ACTIVE
+    RETURNED
+  }
+  enum ReaderCategory {
+    ADULT
+    CHILD
+    PENSIONER
+  }
+  class LoanRuleViolation <<Error>> {
+    + code: LoanRuleCode
+  }
+}
+
+package "loan_comp — порты (интерфейсы соседних компонентов)" {
+  interface LoanRepository <<interface>> {
+    + findById(id: LoanId): Promise<Loan | null>
+    + countActiveByReader(readerId: ReaderId): Promise<number>
+    + save(loan: Loan): Promise<void>
+  }
+  interface ReaderRepository <<interface>> {
+    + findById(id: ReaderId): Promise<ReaderProfile | null>
+  }
+  interface CopyAvailabilityPort <<interface>> {
+    + checkOut(copyBarcode: string): Promise<CopyRef | null>
+    + checkIn(copyId: CopyId): Promise<void>
+  }
+  interface FineChargePort <<interface>> {
+    + charge(fine: FineCharge): Promise<string>
+    + hasUnpaidFines(readerId: ReaderId): Promise<boolean>
+  }
+  interface StaffAccessPort <<interface>> {
+    + assertRole(staffId: string, allowed: StaffRole[]): Promise<void>
+  }
+  interface LoanEventPublisher <<interface>> {
+    + publish(event: LoanDomainEvent): Promise<void>
+  }
+  interface Clock <<interface>> {
+    + now(): Date
+  }
+}
+
+package "Реализации портов в соседних компонентах контейнера (L3)" {
+  class TypeOrmLoanRepository <<data_access>>
+  class CatalogCopyAdapter <<catalog_comp>>
+  class PaymentFineAdapter <<payment_comp>>
+  class JwtStaffAccess <<auth_comp>>
+  class AmqpLoanEventPublisher <<event_publisher>>
+}
+
+' === Слой API → прикладная логика ===
+LoanController --> "1" LoanService : loans
+LoanController ..> IssueLoanDto : принимает
+LoanController ..> LoanRuleViolation : преобразует в HTTP 404 / 409
+
+' === Прикладной сервис: агрегирует контекст стратегии и реестр ===
+LoanService o-- "1" FineCalculator : fineCalculator
+LoanService o-- "1" FinePolicyResolver : finePolicies
+LoanService *-- "1" LoanPolicy : policy
+LoanService ..> Loan : создаёт / изменяет
+LoanService --> "1" LoanRepository : loans
+LoanService --> "1" ReaderRepository : readers
+LoanService --> "1" CopyAvailabilityPort : copies
+LoanService --> "1" FineChargePort : fines
+LoanService --> "1" StaffAccessPort : access
+LoanService --> "1" LoanEventPublisher : events
+LoanService --> "1" Clock : clock
+
+' === Паттерн Strategy ===
+FineCalculator *-- "1" FineStrategy : strategy
+DailyRateFineStrategy ..|> FineStrategy
+ProgressiveFineStrategy ..|> FineStrategy
+PreferentialFineStrategy ..|> FineStrategy
+PreferentialFineStrategy o-- "1" FineStrategy : base
+FinePolicyResolver o-- "1..*" FineStrategy : стратегии по категориям
+FineStrategy --> FinePolicyCode : code
+FineStrategy ..> OverdueContext : использует
+FineStrategy ..> Money : возвращает
+FineCalculator ..> Loan : overdueDays()
+
+' === Доменная модель ===
+Loan --> "1" LoanStatus : status
+OverdueContext --> ReaderCategory
+FinePolicyResolver ..> ReaderCategory : ключ
+
+' === Порты и их реализации (инверсия зависимостей) ===
+LoanRepository ..> Loan : хранит
+TypeOrmLoanRepository ..|> LoanRepository
+TypeOrmLoanRepository ..|> ReaderRepository
+CatalogCopyAdapter ..|> CopyAvailabilityPort
+PaymentFineAdapter ..|> FineChargePort
+JwtStaffAccess ..|> StaffAccessPort
+AmqpLoanEventPublisher ..|> LoanEventPublisher
+
+@enduml
