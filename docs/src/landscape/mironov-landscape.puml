@@ -1,0 +1,40 @@
+@startuml
+' Миронов Д.С.; scope: analytics_service, message_broker; target architecture, not an operational deployment.
+!$focus = 4
+
+title Системный ландшафт — Аналитика и события
+
+!include <C4/C4_Context>
+' L0 systems only. Municipal neighbours are outside the team's ownership.
+Enterprise_Boundary(municipality, "Муниципальная цифровая среда") {
+  System_Ext(city_portal, "Городской портал", "Переход к услугам библиотеки")
+  System_Ext(municipal_iam, "Муниципальная IAM", "Проектная интеграция SSO")
+  System_Boundary(library_it, "Граница ответственности команды") {
+    System(library_system, "Интеллектуальная библиотека", "Каталог, обслуживание, аналитика и электронный фонд")
+  }
+}
+System_Ext(payment_gateway, "Платежный шлюз", "Внешняя финансовая система")
+!if $focus == 0 || $focus == 2 || $focus == 3 || $focus == 5
+System_Ext(neb_catalog, "Каталог НЭБ", "Библиографические записи")
+!endif
+!if $focus == 0 || $focus == 4
+System_Ext(trends_api, "Книжные API", "Метаданные и тренды")
+!endif
+!if $focus == 0 || $focus == 1 || $focus == 3
+System_Ext(mail_service, "Почтовый сервис", "Доставка уведомлений")
+!endif
+Rel(city_portal, library_system, "Переход к каталогу", "HTTPS 443")
+Rel(library_system, municipal_iam, "Вход через SSO", "OIDC / HTTPS 443")
+Rel(library_system, payment_gateway, "Создание платежа", "REST / HTTPS 443")
+Rel(payment_gateway, library_system, "Статус оплаты", "Webhook / HTTPS 443")
+!if $focus == 0 || $focus == 2 || $focus == 3 || $focus == 5
+Rel(library_system, neb_catalog, "Импорт записей", "Z39.50 / TCP 210 через VPN")
+!endif
+!if $focus == 0 || $focus == 4
+Rel(library_system, trends_api, "Снимок трендов", "REST / HTTPS 443")
+!endif
+!if $focus == 0 || $focus == 1 || $focus == 3
+Rel(library_system, mail_service, "Уведомления", "SMTP / STARTTLS 587")
+!endif
+
+@enduml

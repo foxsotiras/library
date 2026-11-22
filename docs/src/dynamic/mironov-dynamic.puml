@@ -1,0 +1,26 @@
+@startuml
+!include <C4/C4_Dynamic>
+' Runtime collaboration: the nodes are static-model elements, not activities.
+title Событие и отчет о востребованности
+System_Ext(trends_api, "Книжные API")
+System_Boundary(library_system, "ИС Интеллектуальная библиотека") {
+  Container(admin_web, "Панель сотрудника", "Vue.js 3")
+  Container(api_gateway, "Backend API", "NestJS")
+  ContainerQueue(message_broker, "Брокер событий", "RabbitMQ")
+  Container(analytics_service, "Аналитика", "Python / gRPC")
+  ContainerDb(database, "База данных", "PostgreSQL")
+}
+Rel(analytics_service, message_broker, "basic.consume analytics.events", "AMQPS 5671", $index="1")
+Rel(api_gateway, message_broker, "loan.issued из outbox", "AMQPS 5671", $index="2")
+Rel(message_broker, analytics_service, "eventId + payload", "AMQPS 5671", $index="3")
+Rel(analytics_service, database, "processed_events + агрегат; COMMIT", "SQL TLS", $index="4")
+Rel(analytics_service, message_broker, "basic.ack", "AMQPS 5671", $index="5")
+Rel(analytics_service, trends_api, "Суточно: Получить снимок", "HTTPS 443", $index="6")
+Rel(trends_api, analytics_service, "Суточно: Метаданные, время снимка", "HTTPS 443", $index="7")
+Rel(analytics_service, database, "Суточно: Снимок и индекс; COMMIT", "SQL TLS", $index="8")
+Rel(admin_web, api_gateway, "GET /reports/demand", "HTTPS 443", $index="9")
+Rel(api_gateway, analytics_service, "GetDemandRating", "gRPC mTLS 50051", $index="10")
+Rel(analytics_service, database, "SELECT analytics", "SQL TLS 5432", $index="11")
+Rel(analytics_service, api_gateway, "score, strategy, asOf", "gRPC mTLS", $index="12")
+Rel(api_gateway, admin_web, "200, метрики и свежесть", "HTTPS 443", $index="13")
+@enduml
