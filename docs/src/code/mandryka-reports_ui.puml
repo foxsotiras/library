@@ -1,0 +1,54 @@
+@startuml mandryka-reports_ui
+skinparam classAttributeIconSize 0
+
+package "reports_ui" {
+
+    class DashboardContext {
+        - _strategy: IReportStrategy
+        + __init__(strategy: IReportStrategy)
+        + set_strategy(strategy: IReportStrategy): None
+        + render_dashboard(data: AnalyticsData): None
+    }
+
+    interface IReportStrategy {
+        + prepare_chart_data(data: AnalyticsData): ChartConfig
+        + get_tab_name(): str
+    }
+
+    class DemandStrategy {
+        + prepare_chart_data(data: AnalyticsData): ChartConfig
+        + get_tab_name(): str
+    }
+
+    class ActivityStrategy {
+        + prepare_chart_data(data: AnalyticsData): ChartConfig
+        + get_tab_name(): str
+    }
+
+    class PenaltyStrategy {
+        + prepare_chart_data(data: AnalyticsData): ChartConfig
+        + get_tab_name(): str
+    }
+
+    class AnalyticsData <<dataclass>> {
+        + period_name: str
+        + books_metrics: List[Dict[str, Any]]
+        + readers_metrics: List[Dict[str, Any]]
+    }
+
+    class ChartConfig <<dataclass>> {
+        + chart_type: str
+        + x_axis: List[str]
+        + series_data: List[float]
+        + title: str
+    }
+
+    DashboardContext --> IReportStrategy : использует
+    DemandStrategy ..|> IReportStrategy : реализует
+    ActivityStrategy ..|> IReportStrategy : реализует
+    PenaltyStrategy ..|> IReportStrategy : реализует
+
+    IReportStrategy ..> AnalyticsData : принимает
+    IReportStrategy ..> ChartConfig : возвращает
+}
+@enduml
